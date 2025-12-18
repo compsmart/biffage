@@ -46,11 +46,15 @@ const STORAGE_KEY_NAME = 'fibbage_player_name';
 const JoinScreen = ({ 
   onJoin,
   initialRoomCode,
-  initialName 
+  initialName,
+  reconnectError,
+  onClearError
 }: { 
   onJoin: (name: string, roomCode: string) => void;
   initialRoomCode?: string;
   initialName?: string;
+  reconnectError?: string | null;
+  onClearError?: () => void;
 }) => {
   const [name, setName] = useState(initialName || '');
   const [roomCode, setRoomCode] = useState(initialRoomCode || '');
@@ -122,6 +126,7 @@ const JoinScreen = ({
             onChange={(e) => {
               setRoomCode(e.target.value.toUpperCase());
               setError('');
+              onClearError?.();
             }}
             maxLength={4}
             autoComplete="off"
@@ -147,14 +152,14 @@ const JoinScreen = ({
         </div>
 
         <AnimatePresence>
-          {error && (
+          {(error || reconnectError) && (
             <motion.div
               className="text-[#ef4444] text-lg text-center font-fun p-3 bg-red-500/20 rounded-lg border-2 border-red-500"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
-              ⚠️ {error}
+              ⚠️ {error || reconnectError}
             </motion.div>
           )}
         </AnimatePresence>
@@ -619,10 +624,12 @@ export const PlayerPage = () => {
   const [roomCode, setRoomCode] = useState('');
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectError, setReconnectError] = useState<string | null>(null);
   const [storedRoomCode, setStoredRoomCode] = useState<string | null>(null);
   const [storedName, setStoredName] = useState<string | null>(null);
   const prevStateRef = useRef<string | null>(null);
   const reconnectAttempted = useRef(false);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { playSound, resumeAudio } = useSounds();
   
@@ -645,9 +652,25 @@ export const PlayerPage = () => {
       reconnectAttempted.current = true;
       setIsReconnecting(true);
       
+      // Set timeout for room check - if no response in 5 seconds, assume room is gone
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setIsReconnecting(false);
+        setReconnectError('Could not reach the game server. Please try again.');
+        localStorage.removeItem(STORAGE_KEY_ROOM);
+        localStorage.removeItem(STORAGE_KEY_NAME);
+        setStoredRoomCode(null);
+        setStoredName(null);
+      }, 5000);
+      
       // Check if room is still active
       socket.emit('check_room', { roomCode: savedRoom });
     }
+    
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
   }, [socket, joined]);
   
   // Handle room check response
@@ -655,6 +678,12 @@ export const PlayerPage = () => {
     if (!socket) return;
     
     const handleRoomCheckResult = ({ roomCode: code, active }: { roomCode: string; active: boolean }) => {
+      // Clear the timeout since we got a response
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      
       setIsReconnecting(false);
       
       if (active) {
@@ -667,11 +696,12 @@ export const PlayerPage = () => {
           setJoined(true);
         }
       } else {
-        // Room no longer exists, clear storage
+        // Room no longer exists, clear storage and show error
         localStorage.removeItem(STORAGE_KEY_ROOM);
         localStorage.removeItem(STORAGE_KEY_NAME);
         setStoredRoomCode(null);
         setStoredName(null);
+        setReconnectError('Game room no longer exists. Please join a new game.');
       }
     };
     
@@ -719,8 +749,21 @@ export const PlayerPage = () => {
       setGameState(state);
     });
     
+    // Handle server errors (e.g., room not found when joining)
+    socket.on('error', ({ message }: { message: string }) => {
+      setJoined(false);
+      setIsReconnecting(false);
+      setReconnectError(message);
+      // Clear stored room data since it failed
+      localStorage.removeItem(STORAGE_KEY_ROOM);
+      localStorage.removeItem(STORAGE_KEY_NAME);
+      setStoredRoomCode(null);
+      setStoredName(null);
+    });
+    
     return () => {
       socket.off('game_state');
+      socket.off('error');
     };
   }, [socket]);
 
@@ -728,6 +771,7 @@ export const PlayerPage = () => {
     if (!socket) return;
     resumeAudio(); // Resume audio on first interaction
     playSound('click');
+    setReconnectError(null); // Clear any previous error
     setName(playerName);
     setRoomCode(code);
     
@@ -815,6 +859,8 @@ export const PlayerPage = () => {
             onJoin={handleJoin} 
             initialRoomCode={storedRoomCode || undefined}
             initialName={storedName || undefined}
+            reconnectError={reconnectError}
+            onClearError={() => setReconnectError(null)}
           />
         )}
 

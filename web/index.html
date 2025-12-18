@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biffage - The Ultimate Quiz Party Game</title>
+  <meta name="description" content="Biffage is the hilarious bluffing quiz game where you fool your friends with fake answers! Host or join a game now.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/images/buffage-logo.png">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Particle Effect Canvas -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- Animated Background -->
+  <div class="bg-party"></div>
+  <div class="bg-shapes">
+    <div class="floating-shape"></div>
+    <div class="floating-shape"></div>
+    <div class="floating-shape"></div>
+    <div class="floating-shape"></div>
+  </div>
+
+  <!-- Floating Emojis Container (populated by JS) -->
+  <div class="floating-emojis"></div>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <img src="assets/images/buffage-logo.png" alt="Biffage Quiz Game" class="logo">
+    
+    <p class="tagline">
+      The <span class="highlight">hilarious bluffing game</span> where you fool your friends with fake answers!
+    </p>
+
+    <div class="cta-group">
+      <a href="https://app.biffage.com/host" class="btn-cartoon btn-host">
+        <span class="btn-icon">📺</span>
+        Host a Game
+      </a>
+      <a href="https://app.biffage.com/play" class="btn-cartoon btn-play">
+        <span class="btn-icon">🎮</span>
+        Join a Game
+      </a>
+    </div>
+
+    <div class="scroll-hint">
+      <small>Learn how to play</small>
+      <span>👇</span>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="section" id="how-to-play">
+    <div class="container">
+      <h2 class="section-title">How to Play 🎯</h2>
+      
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-icon">❓</div>
+          <h3>Read the Question</h3>
+          <p>You'll see a trivia question with a missing answer. It could be about anything!</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-icon">✍️</div>
+          <h3>Write a Lie</h3>
+          <p>Make up a convincing fake answer that might trick other players!</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-icon">🎯</div>
+          <h3>Find the Truth</h3>
+          <p>All answers appear mixed together. Can you spot the real one?</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <div class="step-icon">🏆</div>
+          <h3>Score Points</h3>
+          <p>Get points for correct guesses AND for fooling others with your lies!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="section features-section" id="features">
+    <div class="container">
+      <h2 class="section-title">Why Biffage? 🤩</h2>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎉</div>
+          <div>
+            <h3>Perfect for Parties</h3>
+            <p>Get 3-8 players together for non-stop laughs and friendly competition.</p>
+          </div>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📱</div>
+          <div>
+            <h3>Play on Any Device</h3>
+            <p>Host on a big screen, join from your phone. No app downloads needed!</p>
+          </div>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <div>
+            <h3>Endless Questions</h3>
+            <p>AI-powered questions mean you'll never see the same game twice.</p>
+          </div>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <div>
+            <h3>Quick Rounds</h3>
+            <p>Fast-paced gameplay keeps everyone engaged. Each game takes 15-20 minutes.</p>
+          </div>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">😈</div>
+          <div>
+            <h3>Creativity Rewarded</h3>
+            <p>The more convincing your lies, the more points you score!</p>
+          </div>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🆓</div>
+          <div>
+            <h3>Free to Play</h3>
+            <p>Jump in and start playing immediately. No sign-up required.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA Section -->
+  <section class="cta-section">
+    <h2>Ready to <span class="rainbow-text">Bluff Your Friends?</span></h2>
+    <p>Start a game in seconds. No downloads, no accounts needed!</p>
+    
+    <div class="cta-group">
+      <a href="https://app.biffage.com/host" class="btn-cartoon btn-host">
+        <span class="btn-icon">📺</span>
+        Host a Game
+      </a>
+      <a href="https://app.biffage.com/play" class="btn-cartoon btn-play">
+        <span class="btn-icon">🎮</span>
+        Join a Game
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>Made with ❤️ for game nights everywhere</p>
+    <p style="margin-top: 8px;">© 2024 Biffage. All rights reserved.</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+</body>
+</html>
