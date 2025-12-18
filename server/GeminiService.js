@@ -1,10 +1,10 @@
-const { GoogleGenAI } = require('@google/genai');
 const WebSocket = require('ws');
 
 class GeminiService {
-  constructor(apiKey, onAudioData) {
+  constructor(apiKey, onAudioData, onTurnComplete) {
     this.apiKey = apiKey;
     this.onAudioData = onAudioData; // Callback to send audio to client
+    this.onTurnComplete = onTurnComplete; // Callback when AI finishes speaking
     this.ws = null;
     this.isConnected = false;
   }
@@ -29,6 +29,8 @@ class GeminiService {
         try {
             // Data is Buffer in Node.js ws
             const response = JSON.parse(data.toString());
+            
+            // Handle audio data
             if (response.serverContent && response.serverContent.modelTurn && response.serverContent.modelTurn.parts) {
                 for (const part of response.serverContent.modelTurn.parts) {
                     if (part.inlineData && part.inlineData.mimeType.startsWith('audio/pcm')) {
@@ -39,6 +41,14 @@ class GeminiService {
                          const audioBuffer = Buffer.from(part.inlineData.data, 'base64');
                          if (this.onAudioData) this.onAudioData(audioBuffer);
                     }
+                }
+            }
+            
+            // Detect when the model has finished its turn
+            if (response.serverContent && response.serverContent.turnComplete) {
+                console.log('Gemini turn complete');
+                if (this.onTurnComplete) {
+                    this.onTurnComplete();
                 }
             }
         } catch (e) {
@@ -69,7 +79,7 @@ class GeminiService {
           },
           systemInstruction: {
             parts: [{ text: `
-You are the host of "Fibbage Clone", a bluffing party game. 
+You are the host of "Fibbage", a bluffing party game. 
 You are an australian, talk with an aussie accent.
 Your persona is witty, sarcastic, slightly roasting the players, but ultimately fun and energetic.
 You will receive JSON updates about the game state. 
@@ -78,10 +88,12 @@ DO NOT read the JSON keys. Interpret the data and speak naturally as a game show
 
 Events you will handle:
 - LOBBY: Welcome players, make fun of their names if they are silly.
+- ROUND_INTRO: Explain the round rules. Round 1 is normal points (1000/500). Round 2 is double (2000/1000). Round 3 is triple (3000/1500). Final Fibbage is the last question with triple points.
 - QUESTION: Read the question clearly. Then tell them to write a lie.
 - VOTING: Tell them to find the truth. The lies are on the screen.
 - REVEAL: Reveal the truth. Roast the people who got it wrong. Congratulate the truth-finders.
-- SCOREBOARD: Read the leader.
+- MINI_SCOREBOARD: Quick score update between questions. Keep it snappy.
+- SCOREBOARD: Announce the final winner. Be dramatic!
             ` }]
           }
         }
@@ -108,4 +120,3 @@ Events you will handle:
 }
 
 module.exports = GeminiService;
-

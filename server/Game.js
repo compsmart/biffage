@@ -6,7 +6,7 @@ const GeminiService = require('./GeminiService');
 const questionsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/questions.json'), 'utf8'));
 
 // Timer constants
-const PHASE_DURATION = 60; // 30 seconds per phase
+const PHASE_DURATION = 60; // 60 seconds per phase
 const TIMER_TICK_INTERVAL = 1000; // Broadcast every second
 
 class Game {
@@ -32,6 +32,10 @@ class Game {
     this.timerInterval = null;
     this.remainingTime = PHASE_DURATION;
     
+    // Auto-progress settings
+    this.autoProgress = false;
+    this.audioPlaying = false;
+    
     // Gemini Service
     this.gemini = null;
   }
@@ -39,12 +43,39 @@ class Game {
   initializeGemini() {
       const apiKey = process.env.GEMINI_API_KEY;
       if (apiKey) {
-          this.gemini = new GeminiService(apiKey, (audioBuffer) => {
-              this.io.to(this.hostSocketId).emit('audio_chunk', audioBuffer);
-          });
+          this.gemini = new GeminiService(
+              apiKey, 
+              (audioBuffer) => {
+                  this.io.to(this.hostSocketId).emit('audio_chunk', audioBuffer);
+              },
+              () => {
+                  // onTurnComplete callback
+                  this.audioPlaying = false;
+                  this.io.to(this.hostSocketId).emit('audio_complete');
+                  
+                  // If auto-progress is enabled, advance after audio completes
+                  if (this.autoProgress) {
+                      this.handleAutoProgress();
+                  }
+              }
+          );
           this.gemini.connect();
       } else {
           console.warn("No GEMINI_API_KEY found. AI features disabled.");
+      }
+  }
+  
+  setAutoProgress(enabled) {
+      this.autoProgress = enabled;
+      console.log(`Auto-progress ${enabled ? 'enabled' : 'disabled'} for room ${this.roomCode}`);
+  }
+  
+  handleAutoProgress() {
+      // Auto-advance based on current state
+      if (this.state === 'ROUND_INTRO') {
+          setTimeout(() => this.nextState(), 1000);
+      } else if (this.state === 'MINI_SCOREBOARD') {
+          setTimeout(() => this.nextState(), 2000);
       }
   }
 
@@ -75,6 +106,37 @@ class Game {
         this.broadcastState();
     }
   }
+  
+  // Round detection helpers
+  getRoundNumber() {
+      if (this.currentQuestionIndex < 3) return 1;
+      if (this.currentQuestionIndex < 6) return 2;
+      if (this.currentQuestionIndex < 9) return 3;
+      return 4; // Final Fibbage
+  }
+  
+  getRoundMultiplier() {
+      const round = this.getRoundNumber();
+      if (round === 1) return 1;
+      if (round === 2) return 2;
+      return 3; // Round 3 and Final are triple
+  }
+  
+  getQuestionInRound() {
+      const idx = this.currentQuestionIndex;
+      if (idx < 3) return idx + 1;
+      if (idx < 6) return idx - 2;
+      if (idx < 9) return idx - 5;
+      return 1; // Final Fibbage is always question 1
+  }
+  
+  isFirstQuestionOfRound() {
+      return [0, 3, 6, 9].includes(this.currentQuestionIndex);
+  }
+  
+  isFinalFibbage() {
+      return this.currentQuestionIndex >= 9;
+  }
 
   broadcastState() {
     const playerList = Array.from(this.players.entries()).map(([id, p]) => ({
@@ -101,12 +163,18 @@ class Game {
       currentQuestion: question,
       lies: this.state === 'VOTING' || this.state === 'REVEAL' ? this.currentLies : [],
       round: round,
+      roundNumber: this.getRoundNumber(),
+      roundMultiplier: this.getRoundMultiplier(),
+      questionInRound: this.getQuestionInRound(),
+      isFinalFibbage: this.isFinalFibbage(),
       currentRevealId: currentRevealId,
-      revealedIds: this.state === 'REVEAL' ? this.revealOrder.slice(0, this.revealIndex + 1).map(l => l.id) : []
+      revealedIds: this.state === 'REVEAL' ? this.revealOrder.slice(0, this.revealIndex + 1).map(l => l.id) : [],
+      autoProgress: this.autoProgress
     });
     
     // Send Context to Gemini Server-Side
     if (this.gemini && this.gemini.isConnected) {
+        this.audioPlaying = true;
         this.sendGeminiUpdate(question);
     }
   }
@@ -117,12 +185,25 @@ class Game {
             question: question,
             playerCount: this.players.size,
             leader: this.getLeader(),
-            currentReveal: this.state === 'REVEAL' ? this.revealOrder[this.revealIndex] : null
+            currentReveal: this.state === 'REVEAL' ? this.revealOrder[this.revealIndex] : null,
+            roundNumber: this.getRoundNumber(),
+            roundMultiplier: this.getRoundMultiplier()
         };
         
         let prompt = "";
         if (context.state === 'LOBBY') {
             prompt = `A new player joined! We have ${context.playerCount} players. The leader is ${context.leader || "nobody yet"}. Encourage them to start.`;
+        } else if (context.state === 'ROUND_INTRO') {
+            // Round introduction prompts
+            if (context.roundNumber === 1) {
+                prompt = `Welcome to Fibbage! This is Round 1. Here's how it works: I'll ask a question, you write a convincing lie, then everyone tries to find the real answer among the lies. You get 1000 points for finding the truth, and 500 points for every player you fool with your lie. Let's do this!`;
+            } else if (context.roundNumber === 2) {
+                prompt = `Round 2 - Double Trouble! Things are heating up. All points are now DOUBLED! That's 2000 for finding the truth and 1000 for each fool. The pressure is on!`;
+            } else if (context.roundNumber === 3) {
+                prompt = `Round 3 - Triple Threat! This is where legends are made. All points are TRIPLED! 3000 for truth, 1500 per fool. Make every answer count!`;
+            } else {
+                prompt = `THE FINAL FIBBAGE! One question. One chance. Triple points. Everything you've done leads to this moment. Winner takes all the glory. Losers get roasted. Let's go!`;
+            }
         } else if (context.state === 'LIE_INPUT') {
             // Use spokenText for clearer narration
             prompt = `Read this question for the players: "${question.spokenText}". Tell them to write a convincing lie.`;
@@ -150,8 +231,18 @@ class Game {
                      }
                  }
              }
+        } else if (context.state === 'MINI_SCOREBOARD') {
+            const leader = this.getLeader();
+            const scores = Array.from(this.players.values()).sort((a,b) => b.score - a.score);
+            if (scores.length > 0) {
+                prompt = `Quick score check! ${leader} is in the lead with ${scores[0].score} points. `;
+                if (scores.length > 1) {
+                    prompt += `${scores[1].name} is right behind with ${scores[1].score}. `;
+                }
+                prompt += "Let's keep going!";
+            }
         } else if (context.state === 'SCOREBOARD') {
-            prompt = `Leaderboard time! The leader is ${context.leader}.`;
+            prompt = `Final scores! The winner is ${context.leader}! What a game!`;
         }
         
         if (prompt) this.gemini.sendContext(prompt);
@@ -231,7 +322,8 @@ class Game {
   }
 
   getCurrentQuestionPublic() {
-    if (this.state === 'LOBBY') return null;
+    if (this.state === 'LOBBY' || this.state === 'ROUND_INTRO') return null;
+    if (this.currentQuestionIndex >= this.gameData.questions.length) return null;
     const q = this.gameData.questions[this.currentQuestionIndex];
     return {
       text: q.text,
@@ -245,7 +337,7 @@ class Game {
       if (this.currentQuestionIndex < 3) return "Round 1";
       if (this.currentQuestionIndex < 6) return "Round 2";
       if (this.currentQuestionIndex < 9) return "Round 3";
-      return "Final Round";
+      return "Final Fibbage";
   }
 
   receiveLie(socketId, lieText) {
@@ -322,10 +414,7 @@ class Game {
   }
 
   calculateScores() {
-      const q = this.gameData.questions[this.currentQuestionIndex];
-      let multiplier = 1;
-      if (q.type === 'double') multiplier = 2;
-      if (q.type === 'triple') multiplier = 3;
+      const multiplier = this.getRoundMultiplier();
 
       this.players.forEach(p => {
           if (p.currentVote === 'truth') {
@@ -362,9 +451,14 @@ class Game {
       
       this.revealIndex++;
       if (this.revealIndex >= this.revealOrder.length) {
-          // Done revealing
-          // Wait a moment then allow next
+          // Done revealing - go to mini scoreboard
           this.broadcastState(); 
+          
+          // Auto-advance to mini scoreboard after a delay
+          setTimeout(() => {
+              this.state = 'MINI_SCOREBOARD';
+              this.broadcastState();
+          }, 2000);
           return;
       }
       
@@ -378,27 +472,40 @@ class Game {
 
   nextState() {
       if (this.state === 'LOBBY') {
+          // Start game -> go to round intro
+          this.state = 'ROUND_INTRO';
+          this.broadcastState();
+      } else if (this.state === 'ROUND_INTRO') {
+          // After round intro -> start questions
           this.state = 'LIE_INPUT'; 
           this.broadcastState();
-          this.startTimer(); // Start lie input timer
+          this.startTimer();
       } else if (this.state === 'REVEAL') {
-           // Wait until full reveal is done? 
-           // If user clicks "Next" early, we just skip
-           this.stopTimer();
-           
+           // Skip remaining reveals if clicked early
+           this.state = 'MINI_SCOREBOARD';
+           this.broadcastState();
+      } else if (this.state === 'MINI_SCOREBOARD') {
+          // Clear current round data
           this.players.forEach(p => {
               p.currentLie = '';
               p.currentVote = null;
           });
           
           this.currentQuestionIndex++;
+          
+          // Check if game is over
           if (this.currentQuestionIndex >= this.gameData.questions.length) {
               this.state = 'SCOREBOARD';
               this.broadcastState();
+          } else if (this.isFirstQuestionOfRound()) {
+              // New round - show round intro
+              this.state = 'ROUND_INTRO';
+              this.broadcastState();
           } else {
+              // Same round - continue to next question
               this.state = 'LIE_INPUT';
               this.broadcastState();
-              this.startTimer(); // Start timer for next question
+              this.startTimer();
           }
       } else if (this.state === 'SCOREBOARD') {
           this.stopTimer();

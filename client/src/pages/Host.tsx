@@ -27,7 +27,7 @@ interface Lie {
 }
 
 interface GameState {
-  state: 'LOBBY' | 'LIE_INPUT' | 'VOTING' | 'REVEAL' | 'SCOREBOARD';
+  state: 'LOBBY' | 'ROUND_INTRO' | 'LIE_INPUT' | 'VOTING' | 'REVEAL' | 'MINI_SCOREBOARD' | 'SCOREBOARD';
   players: Player[];
   currentQuestion: {
     text: string;
@@ -37,8 +37,13 @@ interface GameState {
   } | null;
   lies: Lie[];
   round: string;
+  roundNumber: number;
+  roundMultiplier: number;
+  questionInRound: number;
+  isFinalFibbage: boolean;
   currentRevealId: string | null;
   revealedIds: string[];
+  autoProgress: boolean;
 }
 
 // Timer Progress Bar - shows countdown as shrinking bar
@@ -133,6 +138,274 @@ const LoadingScreen = () => (
     </motion.div>
   </motion.div>
 );
+
+// Round Introduction Screen
+const RoundIntroScreen = ({ 
+  gameState, 
+  onContinue 
+}: { 
+  gameState: GameState;
+  onContinue: () => void;
+}) => {
+  const roundNumber = gameState.roundNumber;
+  const isFinal = gameState.isFinalFibbage;
+  
+  // Round-specific content
+  const getRoundContent = () => {
+    if (isFinal) {
+      return {
+        title: "THE FINAL FIBBAGE",
+        subtitle: "One Question. One Chance.",
+        emoji: "🏆",
+        points: "3000 pts for truth • 1500 pts per fool",
+        message: "Everything you've done leads to this moment. Winner takes all!",
+        color: '#ffe66d',
+        bgGradient: 'from-yellow-500/20 to-orange-500/20'
+      };
+    }
+    
+    switch (roundNumber) {
+      case 1:
+        return {
+          title: "ROUND 1",
+          subtitle: "Let's Get Started!",
+          emoji: "🎮",
+          points: "1000 pts for truth • 500 pts per fool",
+          message: "Write a convincing lie. Find the real answer!",
+          color: '#38bdf8',
+          bgGradient: 'from-blue-500/20 to-cyan-500/20'
+        };
+      case 2:
+        return {
+          title: "ROUND 2",
+          subtitle: "Double Trouble! 2X POINTS",
+          emoji: "⚡",
+          points: "2000 pts for truth • 1000 pts per fool",
+          message: "Stakes are higher! Think carefully!",
+          color: '#a855f7',
+          bgGradient: 'from-purple-500/20 to-pink-500/20'
+        };
+      case 3:
+        return {
+          title: "ROUND 3",
+          subtitle: "Triple Threat! 3X POINTS",
+          emoji: "🔥",
+          points: "3000 pts for truth • 1500 pts per fool",
+          message: "This is where legends are made!",
+          color: '#ff6b35',
+          bgGradient: 'from-orange-500/20 to-red-500/20'
+        };
+      default:
+        return {
+          title: `ROUND ${roundNumber}`,
+          subtitle: "",
+          emoji: "🎯",
+          points: "",
+          message: "",
+          color: '#ffe66d',
+          bgGradient: 'from-yellow-500/20 to-orange-500/20'
+        };
+    }
+  };
+  
+  const content = getRoundContent();
+  
+  return (
+    <motion.div 
+      className="flex flex-col items-center justify-center h-screen p-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+    >
+      {/* Background glow */}
+      <motion.div
+        className={`absolute inset-0 bg-gradient-to-br ${content.bgGradient} opacity-50`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.5 }}
+      />
+      
+      {/* Main content */}
+      <motion.div 
+        className="text-center relative z-10"
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+      >
+        {/* Big emoji */}
+        <motion.div
+          className="text-9xl mb-8"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [-5, 5, -5]
+          }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          {content.emoji}
+        </motion.div>
+        
+        {/* Title */}
+        <motion.h1
+          className="font-fun font-black mb-4"
+          style={{
+            fontSize: 'clamp(3rem, 12vw, 8rem)',
+            color: content.color,
+            textShadow: '6px 6px 0 #000, 12px 12px 0 rgba(0,0,0,0.3)',
+          }}
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {content.title}
+        </motion.h1>
+        
+        {/* Subtitle */}
+        {content.subtitle && (
+          <motion.h2
+            className="text-4xl font-fun text-white mb-6"
+            style={{ textShadow: '3px 3px 0 #000' }}
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            {content.subtitle}
+          </motion.h2>
+        )}
+        
+        {/* Points info */}
+        <motion.div
+          className="card-cartoon inline-block px-8 py-4 mb-8"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: 0.6, type: 'spring' }}
+        >
+          <span className="text-2xl font-fun" style={{ color: content.color }}>
+            {content.points}
+          </span>
+        </motion.div>
+        
+        {/* Message */}
+        <motion.p
+          className="text-2xl font-fun text-white/80 max-w-2xl mx-auto mb-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          {content.message}
+        </motion.p>
+        
+        {/* Continue button */}
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 1 }}
+        >
+          <button 
+            onClick={onContinue}
+            className="btn-cartoon btn-green text-3xl py-6 px-12"
+          >
+            🎯 Let's Go! 🎯
+          </button>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Mini Scoreboard (after each question)
+const MiniScoreboardScreen = ({ 
+  gameState, 
+  onContinue 
+}: { 
+  gameState: GameState;
+  onContinue: () => void;
+}) => {
+  const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+  const medals = ['🥇', '🥈', '🥉'];
+  
+  return (
+    <motion.div 
+      className="flex flex-col items-center justify-center h-screen p-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Header */}
+      <motion.div
+        className="text-center mb-8"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+      >
+        <motion.div
+          className="text-6xl mb-4"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+        >
+          📊
+        </motion.div>
+        <h2 
+          className="text-5xl font-fun"
+          style={{ color: '#38bdf8', textShadow: '4px 4px 0 #000' }}
+        >
+          Score Check!
+        </h2>
+        <p className="text-xl font-fun text-white/60 mt-2">
+          Question {gameState.questionInRound} of 3 • {gameState.round}
+        </p>
+      </motion.div>
+
+      {/* Leaderboard */}
+      <div className="card-cartoon p-8 w-full max-w-2xl mb-8">
+        <div className="space-y-4">
+          {sortedPlayers.slice(0, 5).map((player, index) => (
+            <motion.div
+              key={player.id}
+              className={`
+                flex justify-between items-center p-4 rounded-xl border-4 border-black
+                ${index === 0 ? 'bg-[#ffe66d]' : index === 1 ? 'bg-[#c0c0c0]' : index === 2 ? 'bg-[#cd7f32]' : 'bg-white/10'}
+              `}
+              style={{ 
+                boxShadow: '3px 3px 0 0 #000',
+                color: index < 3 ? '#000' : '#fff'
+              }}
+              initial={{ x: index % 2 === 0 ? -100 : 100, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1, type: 'spring' }}
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-3xl">
+                  {medals[index] || `#${index + 1}`}
+                </span>
+                <span className="font-fun text-xl font-bold">{player.name}</span>
+              </div>
+              <motion.span 
+                className="score-cartoon"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.3 + index * 0.1, type: 'spring' }}
+              >
+                ⭐ {player.score.toLocaleString()}
+              </motion.span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Continue button */}
+      <motion.div
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.6 }}
+      >
+        <button 
+          onClick={onContinue}
+          className="btn-cartoon btn-blue text-2xl py-5 px-10"
+        >
+          ➡️ Next Question ➡️
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const LobbyScreen = ({ 
   roomCode, 
@@ -649,6 +922,8 @@ export const HostPage = () => {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
+  const [autoProgress, setAutoProgress] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const prevStateRef = useRef<string | null>(null);
   const prevPlayersRef = useRef<number>(0);
   const prevRevealIndexRef = useRef<number>(-1);
@@ -665,17 +940,23 @@ export const HostPage = () => {
     // State transition sounds
     if (prevState !== currentState) {
       switch (currentState) {
-        case 'LIE_INPUT':
+        case 'ROUND_INTRO':
           playSound('whoosh');
           if (prevState === 'LOBBY') {
             playSound('gameStart');
           }
+          break;
+        case 'LIE_INPUT':
+          playSound('whoosh');
           break;
         case 'VOTING':
           playSound('whoosh');
           break;
         case 'REVEAL':
           playSound('whoosh');
+          break;
+        case 'MINI_SCOREBOARD':
+          playSound('pop');
           break;
         case 'SCOREBOARD':
           playSound('roundEnd');
@@ -719,6 +1000,8 @@ export const HostPage = () => {
 
     socket.on('game_state', (state) => {
       setGameState(state);
+      // Mark audio as playing when we receive new state (Gemini will speak)
+      setIsAudioPlaying(true);
     });
     
     socket.on('audio_chunk', async (chunk: ArrayBuffer) => {
@@ -727,11 +1010,16 @@ export const HostPage = () => {
         audioStreamerRef.current.addPCM16(chunk);
       }
     });
+    
+    socket.on('audio_complete', () => {
+      setIsAudioPlaying(false);
+    });
 
     return () => {
       socket.off('room_created');
       socket.off('game_state');
       socket.off('audio_chunk');
+      socket.off('audio_complete');
     };
   }, [socket]);
   

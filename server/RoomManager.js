@@ -63,6 +63,13 @@ class RoomManager {
           game.nextState();
       }
   }
+  
+  handleSetAutoProgress(socket, roomCode, enabled) {
+      const game = this.rooms.get(roomCode);
+      if (game && game.hostSocketId === socket.id) {
+          game.setAutoProgress(enabled);
+      }
+  }
 
   handleDisconnect(socket) {
     const roomCode = this.socketToRoom.get(socket.id);

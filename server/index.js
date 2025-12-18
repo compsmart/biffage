@@ -50,6 +50,10 @@ io.on('connection', (socket) => {
   socket.on('request_next', ({ roomCode }) => {
      roomManager.handleNext(socket, roomCode);
   });
+  
+  socket.on('set_auto_progress', ({ roomCode, enabled }) => {
+     roomManager.handleSetAutoProgress(socket, roomCode, enabled);
+  });
 
   socket.on('disconnect', () => {
     roomManager.handleDisconnect(socket);
