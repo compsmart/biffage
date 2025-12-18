@@ -24,7 +24,7 @@ interface Lie {
 }
 
 interface GameState {
-  state: 'LOBBY' | 'LIE_INPUT' | 'VOTING' | 'REVEAL' | 'SCOREBOARD';
+  state: 'LOBBY' | 'ROUND_INTRO' | 'LIE_INPUT' | 'VOTING' | 'REVEAL' | 'MINI_SCOREBOARD' | 'SCOREBOARD';
   players: Player[];
   currentQuestion: {
     text: string;
@@ -33,6 +33,9 @@ interface GameState {
   } | null;
   lies: Lie[];
   round: string;
+  roundNumber: number;
+  roundMultiplier: number;
+  isFinalFibbage: boolean;
   currentRevealId: string | null;
   revealedIds: string[];
 }
@@ -520,6 +523,95 @@ const RevealWaitingScreen = () => (
   </motion.div>
 );
 
+// Round Intro waiting screen for players
+const RoundIntroWaitingScreen = ({ roundNumber, isFinal }: { roundNumber: number; isFinal: boolean }) => {
+  const getRoundInfo = () => {
+    if (isFinal) {
+      return { emoji: '🏆', title: 'Final Fibbage!', color: '#ffe66d' };
+    }
+    switch (roundNumber) {
+      case 1: return { emoji: '🎮', title: 'Round 1!', color: '#38bdf8' };
+      case 2: return { emoji: '⚡', title: 'Round 2 - Double Points!', color: '#a855f7' };
+      case 3: return { emoji: '🔥', title: 'Round 3 - Triple Points!', color: '#ff6b35' };
+      default: return { emoji: '🎯', title: `Round ${roundNumber}`, color: '#ffe66d' };
+    }
+  };
+  
+  const info = getRoundInfo();
+  
+  return (
+    <motion.div 
+      className="flex flex-col items-center justify-center min-h-screen p-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <motion.div
+        className="card-cartoon p-10 text-center"
+        initial={{ scale: 0.9, rotate: 3 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: 'spring' }}
+      >
+        <motion.div
+          className="text-8xl mb-6"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [-5, 5, -5]
+          }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          {info.emoji}
+        </motion.div>
+        
+        <h2 
+          className="text-3xl font-fun mb-3" 
+          style={{ color: info.color, textShadow: '2px 2px 0 #000' }}
+        >
+          {info.title}
+        </h2>
+        <p className="text-white/70 text-lg font-fun">
+          Get ready... 🎯
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Mini scoreboard waiting screen for players
+const MiniScoreboardWaitingScreen = ({ score, name }: { score: number; name: string }) => (
+  <motion.div 
+    className="flex flex-col items-center justify-center min-h-screen p-6"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+  >
+    <motion.div
+      className="card-cartoon p-10 text-center"
+      initial={{ scale: 0.9 }}
+      animate={{ scale: 1 }}
+      transition={{ type: 'spring' }}
+    >
+      <motion.div
+        className="text-7xl mb-4"
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 1, repeat: Infinity }}
+      >
+        📊
+      </motion.div>
+      
+      <h2 className="text-3xl font-fun text-[#38bdf8] mb-3" style={{ textShadow: '2px 2px 0 #000' }}>
+        Score Check!
+      </h2>
+      
+      <div className="score-cartoon text-2xl mb-4">
+        ⭐ {score.toLocaleString()}
+      </div>
+      
+      <p className="text-white/70 text-lg font-fun">
+        Look at the big screen, {name}! 👀
+      </p>
+    </motion.div>
+  </motion.div>
+);
+
 export const PlayerPage = () => {
   const socket = useSocket();
   const [joined, setJoined] = useState(false);
@@ -734,6 +826,14 @@ export const PlayerPage = () => {
           />
         )}
 
+        {joined && gameState?.state === 'ROUND_INTRO' && (
+          <RoundIntroWaitingScreen 
+            key="round-intro"
+            roundNumber={gameState.roundNumber}
+            isFinal={gameState.isFinalFibbage}
+          />
+        )}
+
         {joined && gameState?.state === 'LIE_INPUT' && gameState.currentQuestion && (
           <LieInputScreen
             key="lie-input"
@@ -760,6 +860,14 @@ export const PlayerPage = () => {
 
         {joined && gameState?.state === 'REVEAL' && (
           <RevealWaitingScreen key="reveal" />
+        )}
+
+        {joined && gameState?.state === 'MINI_SCOREBOARD' && (
+          <MiniScoreboardWaitingScreen 
+            key="mini-scoreboard"
+            score={myState.score}
+            name={name}
+          />
         )}
 
         {joined && gameState?.state === 'SCOREBOARD' && (

@@ -1052,6 +1052,13 @@ export const HostPage = () => {
     setSfxEnabled(newState);
     setEnabled(newState);
   };
+  
+  const toggleAutoProgress = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newState = !autoProgress;
+    setAutoProgress(newState);
+    socket?.emit('set_auto_progress', { roomCode, enabled: newState });
+  };
 
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -1129,6 +1136,15 @@ export const HostPage = () => {
             >
               {sfxEnabled ? '🔊' : '🔈'}
             </motion.button>
+            <motion.button
+              className={`card-cartoon px-4 py-2 text-xl cursor-pointer transition-all ${autoProgress ? 'ring-2 ring-green-400' : 'opacity-50'}`}
+              onClick={toggleAutoProgress}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              title={autoProgress ? 'Auto-Progress ON' : 'Auto-Progress OFF'}
+            >
+              {autoProgress ? '▶️' : '⏸️'}
+            </motion.button>
           </motion.div>
         )}
       </div>
@@ -1140,6 +1156,14 @@ export const HostPage = () => {
             roomCode={roomCode} 
             players={gameState?.players || []} 
             onStart={handleNext}
+          />
+        )}
+
+        {gameState?.state === 'ROUND_INTRO' && (
+          <RoundIntroScreen 
+            key="round-intro"
+            gameState={gameState}
+            onContinue={handleNext}
           />
         )}
 
@@ -1162,6 +1186,14 @@ export const HostPage = () => {
             key="reveal"
             gameState={gameState}
             onNext={handleNext}
+          />
+        )}
+
+        {gameState?.state === 'MINI_SCOREBOARD' && (
+          <MiniScoreboardScreen 
+            key="mini-scoreboard"
+            gameState={gameState}
+            onContinue={handleNext}
           />
         )}
 

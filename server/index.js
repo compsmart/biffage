@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require("socket.io");
 const cors = require('cors');
 require('dotenv').config({ path: '../.env' }); // Look for .env in root
@@ -9,15 +10,29 @@ const RoomManager = require('./RoomManager');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration - allow specific origins in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:5173', 'http://localhost:3001'];
+
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all for dev
+    origin: process.env.NODE_ENV === 'production' ? allowedOrigins : "*",
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? allowedOrigins : "*"
+}));
 app.use(express.json());
+
+// Serve static files from the built client in production
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientBuildPath));
+}
 
 const roomManager = new RoomManager(io);
 
@@ -60,7 +75,15 @@ io.on('connection', (socket) => {
   });
 });
 
+// Catch-all route for client-side routing (must be after all API routes)
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
+
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
 });

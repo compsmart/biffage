@@ -51,3 +51,29 @@ A clone of the popular game Fibbage, featuring a real-time AI host powered by Ge
 - **Frontend**: React, Vite, Tailwind CSS
 - **AI**: Gemini Live API (Multimodal WebSocket)
 
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for a complete guide on deploying to production.
+
+### Quick Production Build
+
+```bash
+# Build client
+cd client && npm run build
+
+# Start server in production mode
+cd ../server
+NODE_ENV=production node index.js
+```
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+PORT=3001
+NODE_ENV=production
+ALLOWED_ORIGINS=https://yourdomain.com
+GEMINI_API_KEY=your_api_key_here
+```
+
