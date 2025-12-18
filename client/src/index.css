@@ -2,13 +2,6 @@
 
 /* ===== CARTOON PARTY DESIGN SYSTEM ===== */
 
-@font-face {
-  font-family: 'Fredoka';
-  src: url('https://fonts.gstatic.com/s/fredoka/v14/X7nP4b87HvSqjb_WIi2yDCRwoQ_k7367_B-i2yQag0-mac3O8SLMFuOLlNldbw.woff2') format('woff2');
-  font-weight: 300 700;
-  font-display: swap;
-}
-
 :root {
   /* Cartoon Colors - Bright & Saturated */
   --color-bg: #1a1a2e;

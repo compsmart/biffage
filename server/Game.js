@@ -474,6 +474,10 @@ class Game {
       if (this.state === 'LOBBY') {
           // Start game -> go to round intro
           this.state = 'ROUND_INTRO';
+          // Initialize Gemini when game starts
+          if (!this.gemini) {
+              this.initializeGemini();
+          }
           this.broadcastState();
       } else if (this.state === 'ROUND_INTRO') {
           // After round intro -> start questions
