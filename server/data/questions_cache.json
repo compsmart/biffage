@@ -1,0 +1,185 @@
+{
+  "available": [],
+  "served": [
+    {
+      "id": "q_1766088256079_0",
+      "text": "A baby platypus is called a ________.",
+      "spokenText": "A baby platypus is called a BLANK.",
+      "correctAnswer": "puggle",
+      "houseLies": [
+        "duckling",
+        "platypup",
+        "billie",
+        "squab"
+      ],
+      "category": "Animals",
+      "difficulty": "medium",
+      "seed": "Platypus",
+      "seedId": "animals_platypus",
+      "batchId": "batch_1766088256079",
+      "generatedAt": "2025-12-18T20:04:16.079Z"
+    },
+    {
+      "id": "q_1766088256081_1",
+      "text": "Jamais vu is the opposite of déjà vu, and makes familiar things seem ________.",
+      "spokenText": "Jamais vu is the opposite of déjà vu, and makes familiar things seem BLANK.",
+      "correctAnswer": "unfamiliar",
+      "houseLies": [
+        "delicious",
+        "funny",
+        "terrifying",
+        "sparkly"
+      ],
+      "category": "Language",
+      "difficulty": "medium",
+      "seed": "Jamais vu",
+      "seedId": "concepts_jamais_vu",
+      "batchId": "batch_1766088256079",
+      "generatedAt": "2025-12-18T20:04:16.081Z"
+    },
+    {
+      "id": "q_1766088256081_2",
+      "text": "In the 1500s, surgeons used ________ as anesthesia.",
+      "spokenText": "In the 1500s, surgeons used BLANK as anesthesia.",
+      "correctAnswer": "opium",
+      "houseLies": [
+        "vinegar",
+        "song",
+        "prayer",
+        "tonic"
+      ],
+      "category": "History",
+      "difficulty": "hard",
+      "seed": "1500s",
+      "seedId": "decade_1500s",
+      "batchId": "batch_1766088256079",
+      "generatedAt": "2025-12-18T20:04:16.081Z"
+    },
+    {
+      "id": "q_1766088256081_3",
+      "text": "During the Irish Potato Famine, some people survived by eating ________.",
+      "spokenText": "During the Irish Potato Famine, some people survived by eating BLANK.",
+      "correctAnswer": "seaweed",
+      "houseLies": [
+        "grass",
+        "dirt",
+        "leather",
+        "potatoes"
+      ],
+      "category": "History",
+      "difficulty": "medium",
+      "seed": "The Irish Potato Famine",
+      "seedId": "events_the_irish_potato_famine",
+      "batchId": "batch_1766088256079",
+      "generatedAt": "2025-12-18T20:04:16.081Z"
+    },
+    {
+      "id": "q_1766088256081_4",
+      "text": "Before clothes hangers, people often hung clothes on ________.",
+      "spokenText": "Before clothes hangers, people often hung clothes on BLANK.",
+      "correctAnswer": "pegs",
+      "houseLies": [
+        "chairs",
+        "hooks",
+        "ropes",
+        "the floor"
+      ],
+      "category": "Inventions",
+      "difficulty": "medium",
+      "seed": "Hanging",
+      "seedId": "objects_hanging",
+      "batchId": "batch_1766088256079",
+      "generatedAt": "2025-12-18T20:04:16.081Z"
+    },
+    {
+      "id": "q_1766088282840_0",
+      "text": "Certain species of lanternfish have photophores, light-producing organs, located in their ________.",
+      "spokenText": "Certain species of lanternfish have photophores, light-producing organs, located in their BLANK.",
+      "correctAnswer": "tongue",
+      "houseLies": [
+        "eyes",
+        "fins",
+        "gills",
+        "stomach"
+      ],
+      "category": "Animals",
+      "difficulty": "hard",
+      "seed": "Lanternfish",
+      "seedId": "animals_lanternfish",
+      "batchId": "batch_1766088282840",
+      "generatedAt": "2025-12-18T20:04:42.840Z"
+    },
+    {
+      "id": "q_1766088282843_1",
+      "text": "The term \"Butterfly Effect\" was partially inspired by a lecture titled \"Does the flap of a butterfly’s wings in ________ set off a tornado in Texas?\"",
+      "spokenText": "The term \"Butterfly Effect\" was partially inspired by a lecture titled \"Does the flap of a butterfly’s wings in BLANK set off a tornado in Texas?\"",
+      "correctAnswer": "brazil",
+      "houseLies": [
+        "china",
+        "kansas",
+        "russia",
+        "japan"
+      ],
+      "category": "Concepts",
+      "difficulty": "medium",
+      "seed": "Butterfly Effect",
+      "seedId": "concepts_butterfly_effect",
+      "batchId": "batch_1766088282840",
+      "generatedAt": "2025-12-18T20:04:42.843Z"
+    },
+    {
+      "id": "q_1766088282843_2",
+      "text": "In the 1450s, the most popular playing card suit in German-speaking lands was ________.",
+      "spokenText": "In the 1450s, the most popular playing card suit in German-speaking lands was BLANK.",
+      "correctAnswer": "acorns",
+      "houseLies": [
+        "hearts",
+        "bells",
+        "leaves",
+        "shields"
+      ],
+      "category": "History",
+      "difficulty": "hard",
+      "seed": "1450s",
+      "seedId": "decade_1450s",
+      "batchId": "batch_1766088282840",
+      "generatedAt": "2025-12-18T20:04:42.843Z"
+    },
+    {
+      "id": "q_1766088282843_3",
+      "text": "During the Children's Crusade, many of the children were sold into slavery in ________.",
+      "spokenText": "During the Children's Crusade, many of the children were sold into slavery in BLANK.",
+      "correctAnswer": "egypt",
+      "houseLies": [
+        "jerusalem",
+        "france",
+        "italy",
+        "greece"
+      ],
+      "category": "History",
+      "difficulty": "medium",
+      "seed": "The Crusades",
+      "seedId": "events_the_crusades",
+      "batchId": "batch_1766088282840",
+      "generatedAt": "2025-12-18T20:04:42.843Z"
+    },
+    {
+      "id": "q_1766088282843_4",
+      "text": "The \"Little Boy\" atomic bomb dropped on Hiroshima was nicknamed so because it was shaped like a ________.",
+      "spokenText": "The \"Little Boy\" atomic bomb dropped on Hiroshima was nicknamed so because it was shaped like a BLANK.",
+      "correctAnswer": "baby bottle",
+      "houseLies": [
+        "bowling pin",
+        "trash can",
+        "thermos",
+        "lunchbox"
+      ],
+      "category": "History",
+      "difficulty": "medium",
+      "seed": "Little Boy",
+      "seedId": "objects_little_boy",
+      "batchId": "batch_1766088282840",
+      "generatedAt": "2025-12-18T20:04:42.843Z"
+    }
+  ]
+}

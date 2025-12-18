@@ -1,0 +1,15 @@
+{
+  "name": "mcp_test",
+  "version": "1.0.0",
+  "description": "Fibbage-style trivia game with infinite question generation",
+  "scripts": {
+    "generate:batch": "node scripts/generators/gemini_question_generator.js batch",
+    "generate:games": "node scripts/generators/gemini_question_generator.js games",
+    "generate:stats": "node scripts/generators/gemini_question_generator.js stats",
+    "generate:reset": "node scripts/generators/gemini_question_generator.js reset --confirm",
+    "seed:stats": "node scripts/generators/seed_loader.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

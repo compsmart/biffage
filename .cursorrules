@@ -1,0 +1,75 @@
+# Project
+Keep project files in the project directory.
+
+# MCP CLI Bridge - AI Agent Directive
+
+You have access to MCP (Model Context Protocol) servers through the MCP CLI bridge. This allows you to use external tools and capabilities beyond your built-in tools.
+
+## MCP CLI Location
+
+```
+C:\projects\experiments\http_mcp\mcp_cli.py
+```
+
+## Discovering Available Servers and Tools
+
+To see all available MCP servers and their tools, run:
+
+```powershell
+python C:\projects\experiments\http_mcp\mcp_cli.py list-servers
+```
+
+For full details including input schemas:
+
+```powershell
+python C:\projects\experiments\http_mcp\mcp_cli.py list-servers --verbose
+```
+
+## How to Use MCP Tools
+
+### Step 1: Discover Tools
+Run `list-servers` to see what's available, or query a specific server:
+
+```powershell
+python C:\projects\experiments\http_mcp\mcp_cli.py list-tools -c python -a C:\projects\experiments\http_mcp\servers\<server_name>.py
+```
+
+### Step 2: Call a Tool
+Write arguments to a JSON file, then invoke:
+
+```powershell
+# Write arguments to file
+Set-Content -Path "C:\projects\experiments\http_mcp\args.json" -Value '{"param1": "value1", "param2": "value2"}'
+
+# Call the tool
+python C:\projects\experiments\http_mcp\mcp_cli.py call-tool -c python -a C:\projects\experiments\http_mcp\servers\<server_name>.py -t <tool_name> -ta @C:\projects\experiments\http_mcp\args.json
+```
+
+### Step 3: Parse the Response
+Tool responses are JSON. Check for `"success": true/false` to verify results.
+
+## Command Reference
+
+| Action | Command |
+|--------|---------|
+| **List all servers** | `python mcp_cli.py list-servers` |
+| List tools | `python mcp_cli.py list-tools -c <command> -a <server>` |
+| Call tool | `python mcp_cli.py call-tool -c <command> -a <server> -t <tool> -ta @args.json` |
+| List resources | `python mcp_cli.py list-resources -c <command> -a <server>` |
+| Read resource | `python mcp_cli.py read-resource -c <command> -a <server> -u <uri>` |
+| List prompts | `python mcp_cli.py list-prompts -c <command> -a <server>` |
+
+## Important Notes
+
+1. **JSON File for Arguments**: Due to PowerShell escaping issues, always write tool arguments to a JSON file and use the `@filename` syntax.
+
+2. **Absolute Paths**: Use absolute paths for reliability across different working directories.
+
+3. **Generated Files**: Generated files (images, etc.) are typically saved in subdirectories of the project.
+
+## Adding New MCP Servers
+
+To add a new MCP server:
+1. Place the server Python file in `C:\projects\experiments\http_mcp\servers\`
+2. Run `list-servers` to verify it's discovered
+3. Use tools as shown above

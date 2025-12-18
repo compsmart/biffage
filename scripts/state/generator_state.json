@@ -1,0 +1,19 @@
+{
+  "used_seeds": [
+    "animals_platypus",
+    "concepts_jamais_vu",
+    "decade_1500s",
+    "events_the_irish_potato_famine",
+    "objects_hanging",
+    "animals_lanternfish",
+    "concepts_butterfly_effect",
+    "decade_1450s",
+    "events_the_crusades",
+    "objects_little_boy"
+  ],
+  "generated_questions_count": 10,
+  "last_batch_id": "batch_1766088282840",
+  "last_generation_time": "2025-12-18T20:04:42.844Z",
+  "total_api_calls": 2,
+  "failed_generations": 0
+}
