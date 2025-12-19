@@ -39,7 +39,7 @@ module.exports = [
     id: 'deadpan_robot',
     name: 'B.I.F.F.-9000',
     description:
-      'A supposedly emotionless robot who delivers absolutely deadpan lines that somehow make the chaos even funnier.',
+      'A fast talking emotionless robot who delivers absolutely deadpan lines that somehow make the chaos even funnier.',
     avatarKey: 'deadpan_robot',
     gender: 'male',
     voiceName: 'Enceladus',

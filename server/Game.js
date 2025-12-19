@@ -41,6 +41,7 @@ class Game {
     this.autoProgress = false;
     this.audioPlaying = false;
     this.revealTimer = null; // Timer for reveal step progression
+    this.autoProgressTimer = null; // Fallback timer for auto-progress when Gemini audio doesn't complete
 
     // Family mode setting
     this.familyMode = true;
@@ -106,6 +107,9 @@ class Game {
       clearTimeout(this.revealTimer);
       this.revealTimer = null;
     }
+    
+    // Clear auto-progress fallback timer if active
+    this.clearAutoProgressTimer();
     
     if (this.gemini && this.gemini.ws) {
       try {
@@ -189,6 +193,9 @@ class Game {
   }
   
   handleAutoProgress() {
+      // Clear any pending fallback timer since audio just completed
+      this.clearAutoProgressTimer();
+      
       // Auto-advance based on current state
       if (this.state === 'ROUND_INTRO') {
           setTimeout(() => this.nextState(), 1000);
@@ -205,6 +212,28 @@ class Game {
       } else if (this.state === 'SCOREBOARD') {
           // Auto-restart game after final scoreboard celebration
           setTimeout(() => this.nextState(), 5000);
+      }
+  }
+  
+  // Schedule a fallback timer for auto-progress in case Gemini audio doesn't complete
+  scheduleAutoProgressFallback(delayMs = 10000) {
+      this.clearAutoProgressTimer();
+      if (this.autoProgress) {
+          const currentState = this.state;
+          this.autoProgressTimer = setTimeout(() => {
+              // Only advance if still in the same state (prevents race conditions)
+              if (this.state === currentState) {
+                  console.log(`[Room ${this.roomCode}] Auto-progress fallback triggered for state: ${currentState}`);
+                  this.nextState();
+              }
+          }, delayMs);
+      }
+  }
+  
+  clearAutoProgressTimer() {
+      if (this.autoProgressTimer) {
+          clearTimeout(this.autoProgressTimer);
+          this.autoProgressTimer = null;
       }
   }
 
@@ -692,6 +721,8 @@ class Game {
               // Auto-progress: transition immediately (audio already completed)
               this.state = 'MINI_SCOREBOARD';
               this.broadcastState();
+              // Schedule fallback timer in case Gemini audio doesn't complete
+              this.scheduleAutoProgressFallback(10000);
           }
           return;
       }
@@ -710,6 +741,9 @@ class Game {
   }
 
   nextState() {
+      // Clear any pending auto-progress timer when manually advancing
+      this.clearAutoProgressTimer();
+      
       if (this.state === 'LOBBY') {
           // Start game -> go to round intro
           this.state = 'ROUND_INTRO';
@@ -718,6 +752,7 @@ class Game {
               this.initializeGemini();
           }
           this.broadcastState();
+          this.scheduleAutoProgressFallback(15000); // 15s fallback for round intro
       } else if (this.state === 'ROUND_INTRO') {
           // After round intro -> start questions
           this.state = 'LIE_INPUT'; 
@@ -725,8 +760,14 @@ class Game {
           this.startTimer();
       } else if (this.state === 'REVEAL') {
            // Skip remaining reveals if clicked early
+           this.clearAutoProgressTimer();
+           if (this.revealTimer) {
+               clearTimeout(this.revealTimer);
+               this.revealTimer = null;
+           }
            this.state = 'MINI_SCOREBOARD';
            this.broadcastState();
+           this.scheduleAutoProgressFallback(10000); // 10s fallback for mini scoreboard
       } else if (this.state === 'MINI_SCOREBOARD') {
           // Clear current round data
           this.players.forEach(p => {
@@ -740,10 +781,12 @@ class Game {
           if (this.currentQuestionIndex >= this.gameData.questions.length) {
               this.state = 'SCOREBOARD';
               this.broadcastState();
+              this.scheduleAutoProgressFallback(15000); // 15s fallback for final scoreboard
           } else if (this.isFirstQuestionOfRound()) {
               // New round - show round intro
               this.state = 'ROUND_INTRO';
               this.broadcastState();
+              this.scheduleAutoProgressFallback(15000); // 15s fallback for round intro
           } else {
               // Same round - continue to next question
               this.state = 'LIE_INPUT';
@@ -776,6 +819,9 @@ class Game {
           clearTimeout(this.revealTimer);
           this.revealTimer = null;
       }
+      
+      // Clear auto-progress fallback timer if active
+      this.clearAutoProgressTimer();
       
       // Reset game state
       this.currentQuestionIndex = 0;
