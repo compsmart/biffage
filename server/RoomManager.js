@@ -165,15 +165,21 @@ class RoomManager {
     if (roomCode) {
       const game = this.rooms.get(roomCode);
       if (game) {
-        game.removePlayer(socket.id);
+        // Do NOT remove player on socket disconnect - they may reconnect
+        // Players are only removed when they explicitly click "Leave Game"
+        // This preserves their score during temporary disconnections
+        
         if (game.hostSocketId === socket.id) {
-            console.log(`Host left room ${roomCode}`);
+            console.log(`Host disconnected from room ${roomCode}`);
             // Clean up game resources (timers, heartbeat checks, Gemini, etc.)
             game.cleanup();
             this.rooms.delete(roomCode);
+            // Also clean up socket mapping
+            this.socketToRoom.delete(socket.id);
         }
+        // For players, we keep their socketToRoom mapping so they can be identified on reconnect
+        // The mapping will be updated when they rejoin via join_player
       }
-      this.socketToRoom.delete(socket.id);
     }
   }
 }

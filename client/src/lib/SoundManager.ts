@@ -21,7 +21,13 @@ export type SoundType =
   | 'tick'
   | 'whoosh'
   | 'pop'
-  | 'error';
+  | 'error'
+  | 'answerFocus'
+  | 'playersFooled'
+  | 'pointsAwarded'
+  | 'truthReveal'
+  | 'correctPlayers'
+  | 'drumroll';
 
 class SoundManager {
   private audioContext: AudioContext | null = null;
@@ -52,7 +58,8 @@ class SoundManager {
     const allTypes: SoundType[] = [
       'click', 'playerJoin', 'countdown', 'countdownFinal', 'gameStart',
       'lieSubmit', 'voteSubmit', 'revealLie', 'revealTruth', 'scoreUp',
-      'roundEnd', 'victory', 'tick', 'whoosh', 'pop', 'error'
+      'roundEnd', 'victory', 'tick', 'whoosh', 'pop', 'error',
+      'answerFocus', 'playersFooled', 'pointsAwarded', 'truthReveal', 'correctPlayers', 'drumroll'
     ];
     allTypes.forEach(type => {
       this.soundFiles.set(type, []);
@@ -456,6 +463,24 @@ class SoundManager {
       case 'error':
         this.playError(ctx, now);
         break;
+      case 'answerFocus':
+        this.playAnswerFocus(ctx, now);
+        break;
+      case 'playersFooled':
+        this.playPlayersFooled(ctx, now);
+        break;
+      case 'pointsAwarded':
+        this.playPointsAwarded(ctx, now);
+        break;
+      case 'truthReveal':
+        this.playTruthReveal(ctx, now);
+        break;
+      case 'correctPlayers':
+        this.playCorrectPlayers(ctx, now);
+        break;
+      case 'drumroll':
+        this.playDrumroll(ctx, now);
+        break;
     }
   }
 
@@ -856,6 +881,233 @@ class SoundManager {
     
     osc.start(time);
     osc.stop(time + 0.2);
+  }
+
+  // Answer comes into focus - dramatic whoosh/zoom
+  private playAnswerFocus(ctx: AudioContext, time: number) {
+    // Rising sweep with impact
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(100, time);
+    osc.frequency.exponentialRampToValueAtTime(800, time + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(400, time + 0.25);
+    
+    gain.gain.setValueAtTime(0, time);
+    gain.gain.linearRampToValueAtTime(0.2, time + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
+    
+    osc.connect(gain);
+    gain.connect(this.sfxGain!);
+    
+    osc.start(time);
+    osc.stop(time + 0.4);
+    
+    // Impact thud
+    const thud = ctx.createOscillator();
+    const thudGain = ctx.createGain();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(80, time + 0.15);
+    thud.frequency.exponentialRampToValueAtTime(40, time + 0.3);
+    thudGain.gain.setValueAtTime(0.3, time + 0.15);
+    thudGain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
+    thud.connect(thudGain);
+    thudGain.connect(this.sfxGain!);
+    thud.start(time + 0.15);
+    thud.stop(time + 0.4);
+  }
+
+  // Players got fooled - comedic "wah wah" sound
+  private playPlayersFooled(ctx: AudioContext, time: number) {
+    // Descending "wah wah wah" trombone-like sound
+    const notes = [350, 300, 250, 200];
+    
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sawtooth';
+      
+      const noteTime = time + i * 0.2;
+      osc.frequency.setValueAtTime(freq, noteTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.8, noteTime + 0.15);
+      
+      gain.gain.setValueAtTime(0, noteTime);
+      gain.gain.linearRampToValueAtTime(0.15, noteTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteTime + 0.18);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.2);
+    });
+  }
+
+  // Points awarded - cash register / coin sound
+  private playPointsAwarded(ctx: AudioContext, time: number) {
+    // Coin drop sequence
+    const notes = [1200, 1400, 1600, 1800, 2000];
+    
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      
+      const noteTime = time + i * 0.06;
+      gain.gain.setValueAtTime(0.2, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteTime + 0.1);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.1);
+    });
+    
+    // Cash register "cha-ching"
+    const ring = ctx.createOscillator();
+    const ringGain = ctx.createGain();
+    ring.type = 'triangle';
+    ring.frequency.value = 2500;
+    ringGain.gain.setValueAtTime(0.15, time + 0.3);
+    ringGain.gain.exponentialRampToValueAtTime(0.01, time + 0.6);
+    ring.connect(ringGain);
+    ringGain.connect(this.sfxGain!);
+    ring.start(time + 0.3);
+    ring.stop(time + 0.6);
+  }
+
+  // Truth revealed - triumphant fanfare
+  private playTruthReveal(ctx: AudioContext, time: number) {
+    // Triumphant chord with shimmer
+    const chordNotes = [523.25, 659.25, 783.99, 1046.50]; // C major with octave
+    
+    chordNotes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.2, time + 0.05);
+      gain.gain.setValueAtTime(0.2, time + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, time + 1.0);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      
+      osc.start(time);
+      osc.stop(time + 1.0);
+    });
+    
+    // Add sparkle/shimmer effect
+    for (let i = 0; i < 5; i++) {
+      const sparkle = ctx.createOscillator();
+      const sparkleGain = ctx.createGain();
+      sparkle.type = 'sine';
+      sparkle.frequency.value = 2000 + Math.random() * 3000;
+      const sparkleTime = time + 0.1 + i * 0.1;
+      sparkleGain.gain.setValueAtTime(0.08, sparkleTime);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.001, sparkleTime + 0.2);
+      sparkle.connect(sparkleGain);
+      sparkleGain.connect(this.sfxGain!);
+      sparkle.start(sparkleTime);
+      sparkle.stop(sparkleTime + 0.2);
+    }
+  }
+
+  // Correct players celebration - applause/cheer
+  private playCorrectPlayers(ctx: AudioContext, time: number) {
+    // Celebratory rising arpeggio
+    const notes = [392, 493.88, 587.33, 783.99, 987.77]; // G major scale up
+    
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      
+      const noteTime = time + i * 0.08;
+      gain.gain.setValueAtTime(0.2, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteTime + 0.2);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.2);
+    });
+    
+    // Victory stinger
+    const stinger = ctx.createOscillator();
+    const stingerGain = ctx.createGain();
+    stinger.type = 'square';
+    stinger.frequency.value = 1174.66; // D6
+    stingerGain.gain.setValueAtTime(0.15, time + 0.4);
+    stingerGain.gain.exponentialRampToValueAtTime(0.01, time + 0.8);
+    stinger.connect(stingerGain);
+    stingerGain.connect(this.sfxGain!);
+    stinger.start(time + 0.4);
+    stinger.stop(time + 0.8);
+  }
+
+  // Drumroll for tension before truth reveal
+  private playDrumroll(ctx: AudioContext, time: number) {
+    const rollDuration = 1.2;
+    const hitCount = 30;
+    
+    for (let i = 0; i < hitCount; i++) {
+      const hitTime = time + (i / hitCount) * rollDuration;
+      
+      // Create noise burst for each hit
+      const bufferSize = ctx.sampleRate * 0.05;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      for (let j = 0; j < bufferSize; j++) {
+        data[j] = Math.random() * 2 - 1;
+      }
+      
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 200 + Math.random() * 100;
+      filter.Q.value = 2;
+      
+      const gain = ctx.createGain();
+      // Crescendo effect
+      const volume = 0.05 + (i / hitCount) * 0.15;
+      gain.gain.setValueAtTime(volume, hitTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, hitTime + 0.05);
+      
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain!);
+      
+      noise.start(hitTime);
+      noise.stop(hitTime + 0.05);
+    }
+    
+    // Final hit/crash
+    const crash = ctx.createOscillator();
+    const crashGain = ctx.createGain();
+    crash.type = 'triangle';
+    crash.frequency.setValueAtTime(150, time + rollDuration);
+    crash.frequency.exponentialRampToValueAtTime(50, time + rollDuration + 0.3);
+    crashGain.gain.setValueAtTime(0.3, time + rollDuration);
+    crashGain.gain.exponentialRampToValueAtTime(0.01, time + rollDuration + 0.3);
+    crash.connect(crashGain);
+    crashGain.connect(this.sfxGain!);
+    crash.start(time + rollDuration);
+    crash.stop(time + rollDuration + 0.3);
   }
 
   // Background music

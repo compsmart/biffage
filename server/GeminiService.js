@@ -35,6 +35,13 @@ class GeminiService {
     // Heartbeat to detect dead connections
     this.heartbeatIntervalId = null;
     this.HEARTBEAT_INTERVAL_MS = 15000; // Check every 15 seconds
+    
+    // Keep-alive to prevent idle timeout (sends empty clientContent)
+    this.keepAliveIntervalId = null;
+    this.KEEPALIVE_INTERVAL_MS = 15000; // Send every 15 seconds
+    
+    // GoAway handling - flag to track pending reconnection due to GoAway
+    this.goAwayPending = false;
   }
 
   setDisconnectCallback(callback) {
@@ -125,14 +132,60 @@ class GeminiService {
     }
   }
 
+  // Start keep-alive to prevent idle timeout by sending empty clientContent
+  startKeepAlive() {
+    this.stopKeepAlive();
+    this.keepAliveIntervalId = setInterval(() => {
+      if (this.ws && this.isConnected && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          // Send empty clientContent as keepalive (Gemini accepts this)
+          const keepAlive = {
+            clientContent: {
+              turns: [],
+              turnComplete: false
+            }
+          };
+          this.ws.send(JSON.stringify(keepAlive));
+        } catch (e) {
+          console.error('[Gemini] Error sending keepalive:', e);
+          // If keepalive fails, connection is likely dead - trigger reconnection
+          this.isConnected = false;
+          if (!this.isReconnecting && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.scheduleReconnect();
+          }
+        }
+      }
+    }, this.KEEPALIVE_INTERVAL_MS);
+  }
+
+  stopKeepAlive() {
+    if (this.keepAliveIntervalId) {
+      clearInterval(this.keepAliveIntervalId);
+      this.keepAliveIntervalId = null;
+    }
+  }
+
+  // Cleanup all intervals, timeouts, and listeners before reconnecting
+  cleanup() {
+    this.stopHeartbeat();
+    this.stopKeepAlive();
+    this.clearResponseTimeout();
+    
+    // Remove all listeners from the old WebSocket to prevent memory leaks
+    if (this.ws) {
+      this.ws.removeAllListeners();
+    }
+  }
+
   connect() {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.isReconnecting && this.ws && this.ws.readyState === WebSocket.OPEN) {
       console.warn('[Gemini] Connection already exists and is open, skipping connect');
       return;
     }
 
-    // Clean up any existing connection
+    // Clean up any existing connection properly
     if (this.ws) {
+      this.cleanup();
       try {
         this.ws.terminate();
       } catch (e) {
@@ -154,12 +207,18 @@ class GeminiService {
     }
     
     const fullUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
-    this.ws = new WebSocket(fullUrl);
+    
+    // Create WebSocket with options for better connection handling
+    this.ws = new WebSocket(fullUrl, {
+      handshakeTimeout: 30000, // 30 second timeout for handshake
+      perMessageDeflate: false // Disable compression for better compatibility
+    });
 
     this.ws.on('open', () => {
       console.log('[Gemini] WebSocket connection opened');
       this.isConnected = true;
       this.isReconnecting = false;
+      this.goAwayPending = false;
       this.reconnectAttempts = 0;
       this.reconnectDelay = 1000; // Reset delay on successful connection
       this.lastResponseTime = Date.now(); // Reset response timer
@@ -167,6 +226,9 @@ class GeminiService {
       
       // Start heartbeat to detect dead connections
       this.startHeartbeat();
+      
+      // Start keep-alive to prevent idle timeout
+      this.startKeepAlive();
       
       try {
         this.sendSetup();
@@ -235,15 +297,43 @@ class GeminiService {
         }
         
         // Handle GoAway message - server is about to disconnect (per Live API docs)
+        // Proactively close and reconnect before the server kills the connection
         if (response.goAway) {
-          const timeLeft = response.goAway.timeLeft;
-          console.warn(`[Gemini] ⚠️ Received GoAway message - connection will close in ${timeLeft}`);
-          console.log('[Gemini] Preparing for session resumption...');
-          // Don't disconnect immediately - the server will do that
-          // But prepare for reconnection
-          if (this.onDisconnect) {
-            this.onDisconnect('goaway', timeLeft);
+          const timeLeftStr = response.goAway.timeLeft;
+          console.warn(`[Gemini] ⚠️ Received GoAway message - connection will close in ${timeLeftStr}`);
+          console.log('[Gemini] Preparing for proactive session resumption...');
+          
+          // Parse the timeLeft (format like "30s" or "1m30s")
+          let timeLeftMs = 1000; // Default to 1 second if parsing fails
+          if (timeLeftStr) {
+            const match = timeLeftStr.match(/^(\d+(?:\.\d+)?)s$/);
+            if (match) {
+              timeLeftMs = Math.max(100, (parseFloat(match[1]) - 1) * 1000); // Leave 1s buffer
+            }
           }
+          
+          // Cap at 5 seconds max wait - we don't want to wait too long
+          timeLeftMs = Math.min(timeLeftMs, 5000);
+          
+          // Set flag to indicate GoAway-triggered reconnection
+          this.goAwayPending = true;
+          
+          // Reset reconnect attempts to ensure quick reconnection
+          this.reconnectAttempts = 0;
+          
+          // Notify callback
+          if (this.onDisconnect) {
+            this.onDisconnect('goaway', timeLeftStr);
+          }
+          
+          // Proactively close and reconnect before the server kills the connection
+          console.log(`[Gemini] Will reconnect in ${timeLeftMs}ms due to GoAway`);
+          setTimeout(() => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+              console.log('[Gemini] Closing connection proactively due to GoAway...');
+              this.ws.close(1000, 'GoAway received');
+            }
+          }, timeLeftMs);
         }
         
         // Log server responses for debugging
@@ -332,9 +422,16 @@ class GeminiService {
       console.log(`[Gemini] Close code meanings: 1000=Normal, 1001=Going Away, 1002=Protocol Error, 1003=Unsupported Data, 1006=Abnormal Closure, 1011=Server Error`);
       
       this.isConnected = false;
+      this.cleanup();
       this.ws = null;
-      this.stopHeartbeat();
-      this.clearResponseTimeout();
+      
+      // Check if this was a GoAway-triggered close - always reconnect in that case
+      if (this.goAwayPending) {
+        console.log('[Gemini] Reconnecting due to GoAway...');
+        this.goAwayPending = false;
+        this.scheduleReconnect();
+        return;
+      }
       
       // Determine if we should attempt reconnection
       const shouldReconnect = this.shouldAttemptReconnect(code, reasonStr);
@@ -356,6 +453,28 @@ class GeminiService {
       console.error('[Gemini] Error message:', err.message);
       console.error('[Gemini] Error code:', err.code);
       console.error('[Gemini] Error stack:', err.stack);
+      
+      this.isConnected = false;
+      
+      // Handle ECONNRESET and other connection errors - trigger reconnection
+      if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+        console.log(`[Gemini] Connection error (${err.code}), will attempt reconnection...`);
+        
+        // Close existing connection if still open
+        if (this.ws && this.ws.readyState !== WebSocket.CLOSED && this.ws.readyState !== WebSocket.CLOSING) {
+          try {
+            this.ws.close();
+          } catch (e) {
+            console.error('[Gemini] Error closing WebSocket after error:', e);
+          }
+        }
+        
+        this.cleanup();
+        
+        if (!this.isReconnecting && this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnect();
+        }
+      }
     });
   }
 
@@ -606,9 +725,9 @@ class GeminiService {
   disconnect() {
     console.log('[Gemini] Manually disconnecting');
     this.isReconnecting = false; // Prevent auto-reconnect
+    this.goAwayPending = false;
     this.reconnectAttempts = this.maxReconnectAttempts; // Prevent further reconnects
-    this.clearResponseTimeout();
-    this.stopHeartbeat();
+    this.cleanup();
     
     if (this.ws) {
       try {

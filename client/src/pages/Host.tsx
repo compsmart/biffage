@@ -51,6 +51,8 @@ interface GameState {
   isFinalFibbage: boolean;
   currentRevealId: string | null;
   revealedIds: string[];
+  votesByLie: Record<string, string[]>;
+  votedLieIds: string[];
   autoProgress: boolean;
   hostPersona?: HostPersona | null;
   hostPersonas?: HostPersona[];
@@ -429,14 +431,14 @@ const LobbyScreen = ({
   onChangeHost: () => void;
 }) => (
   <motion.div 
-    className="flex flex-col items-center justify-center h-screen p-8 gap-10"
+    className="flex flex-col items-center h-screen p-6 pt-4 gap-10 overflow-y-auto"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0, scale: 0.9 }}
   >
     {/* Header decoration */}
     <motion.div 
-      className="mb-8"
+      className="flex-shrink-0 mb-4"
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, type: 'spring' }}
@@ -444,46 +446,46 @@ const LobbyScreen = ({
       <motion.img 
         src="/images/biffage-white-inline.png" 
         alt="Biffage" 
-        className="max-w-md w-full h-auto logo-glow"
-        animate={{ y: [0, -10, 0], rotate: [-3, 3, -3] }}
+        className="max-w-sm w-full h-auto logo-glow"
+        animate={{ y: [0, -8, 0], rotate: [-2, 2, -2] }}
         transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
       />
     </motion.div>
 
     {/* Waiting for players */}
     <motion.div 
-      className="card-cartoon p-10 mb-8 text-center w-full max-w-4xl"
+      className="card-cartoon p-6 text-center w-full max-w-3xl flex-shrink-0 mb-4"
       initial={{ y: 30, opacity: 0, rotate: -2 }}
       animate={{ y: 0, opacity: 1, rotate: 0 }}
       transition={{ delay: 0.2, type: 'spring' }}
     >
       {players.length === 0 ? (
-        <motion.div className="space-y-6">
+        <motion.div className="space-y-4">
           <motion.div
-            className="text-8xl"
+            className="text-6xl"
             animate={{ scale: [1, 1.2, 1], rotate: [-10, 10, -10] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           >
             👀
           </motion.div>
-          <div className="text-3xl font-fun text-white/70">
+          <div className="text-2xl font-fun text-white/70">
             Waiting for players to join...
           </div>
         </motion.div>
       ) : (
-        <div className="space-y-8">
-          <div className="text-3xl font-fun text-white flex items-center justify-center gap-3">
-            <span className="text-4xl">🎮</span>
+        <div className="space-y-4">
+          <div className="text-2xl font-fun text-white flex items-center justify-center gap-2">
+            <span className="text-3xl">🎮</span>
             <span>{players.length} Player{players.length !== 1 ? 's' : ''} Ready!</span>
-            <span className="text-4xl">🎮</span>
+            <span className="text-3xl">🎮</span>
           </div>
           
-          <div className="flex justify-center gap-6 flex-wrap">
+          <div className="flex justify-center gap-4 flex-wrap">
             <AnimatePresence>
               {players.map((player, index) => (
                 <motion.div
                   key={player.id}
-                  className="speech-bubble text-2xl font-fun px-8 py-4"
+                  className="speech-bubble text-lg font-fun px-5 py-2"
                   initial={{ scale: 0, rotate: -10 }}
                   animate={{ scale: 1, rotate: 0 }}
                   exit={{ scale: 0, rotate: 10 }}
@@ -501,13 +503,13 @@ const LobbyScreen = ({
 
     {/* Host persona panel */}
     <motion.div
-      className="card-cartoon p-6 mb-8 w-full max-w-2xl flex items-center justify-between gap-6"
+      className="card-cartoon p-4 w-full max-w-3xl flex items-center justify-between gap-4 flex-shrink-0 mb-4"
       initial={{ opacity: 0, y: 20, rotate: 1 }}
       animate={{ opacity: 1, y: 0, rotate: 0 }}
       transition={{ delay: 0.3, type: 'spring' }}
     >
-      <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-black bg-white flex items-center justify-center">
+      <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div className="relative w-16 h-16 rounded-full overflow-hidden border-3 border-black bg-white flex items-center justify-center flex-shrink-0">
           {hostPersona ? (
             <img
               src={`/images/personas/${hostPersona.avatarKey}.png`}
@@ -515,25 +517,25 @@ const LobbyScreen = ({
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-3xl">🎙️</span>
+            <span className="text-2xl">🎙️</span>
           )}
         </div>
-        <div className="text-left">
-          <div className="text-sm font-fun text-white/60 uppercase tracking-wider">
+        <div className="text-left min-w-0 flex-1">
+          <div className="text-xs font-fun text-white/60 uppercase tracking-wider">
             Your Host
           </div>
-          <div className="text-2xl font-fun text-[#ffe66d]">
+          <div className="text-xl font-fun text-[#ffe66d]">
             {hostPersona ? hostPersona.name : 'Mystery MC'}
           </div>
           {hostPersona && (
-            <div className="text-sm font-fun text-white/70 mt-1 max-w-md">
+            <div className="text-sm font-fun text-white/70">
               {hostPersona.description}
             </div>
           )}
         </div>
       </div>
       <motion.button
-        className="btn-cartoon btn-pink text-lg px-6 py-3 whitespace-nowrap"
+        className="btn-cartoon btn-pink text-base px-5 py-2.5 whitespace-nowrap flex-shrink-0"
         onClick={onChangeHost}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -542,19 +544,19 @@ const LobbyScreen = ({
       </motion.button>
     </motion.div>
 
-    {/* Start Button */}
+    {/* Start Button - only show when at least 2 players have joined */}
     <AnimatePresence>
-      {players.length > 0 && (
+      {players.length >= 2 && (
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ delay: 0.4, type: 'spring' }}
-          className="starburst"
+          className="starburst flex-shrink-0"
         >
           <button 
             onClick={onStart}
-            className="btn-cartoon btn-green text-3xl py-6 px-12"
+            className="btn-cartoon btn-green text-2xl py-4 px-8"
           >
             🚀 Start Game! 🚀
           </button>
@@ -590,37 +592,37 @@ const QuestionScreen = ({
     )}
     
     {/* Middle section: Question Card - takes up most space */}
-    <div className="flex-1 flex items-center justify-center w-full py-8">
+    <div className="flex-1 flex items-center justify-center w-full py-4">
       {gameState.currentQuestion && (
         <motion.div
-          className="card-glow p-12 w-full max-w-5xl relative"
+          className="card-glow p-8 w-full max-w-5xl relative"
           initial={{ opacity: 0, y: 50, rotate: -2 }}
           animate={{ opacity: 1, y: 0, rotate: 0 }}
           transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
         >
           {/* Corner decorations */}
-          <div className="absolute -top-6 -left-6 text-5xl animate-bounce">🤔</div>
-          <div className="absolute -top-6 -right-6 text-5xl animate-bounce" style={{ animationDelay: '0.2s' }}>❓</div>
+          <div className="absolute -top-5 -left-5 text-4xl animate-bounce">🤔</div>
+          <div className="absolute -top-5 -right-5 text-4xl animate-bounce" style={{ animationDelay: '0.2s' }}>❓</div>
           
           {/* Header with round and category */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-4">
             {gameState.round && (
-              <span className="text-xl font-fun text-white/60 uppercase tracking-wider">
+              <span className="text-lg font-fun text-white/60 uppercase tracking-wider">
                 {gameState.round}
               </span>
             )}
             
             {gameState.currentQuestion.category && (
-              <span className="category-cartoon text-lg px-6 py-2">
+              <span className="category-cartoon text-base px-4 py-1.5">
                 {gameState.currentQuestion.category}
               </span>
             )}
           </div>
           
-          {/* Question text - Large and centered */}
+          {/* Question text - sized to fit longer questions */}
           <h2 
-            className="font-fun font-bold text-center leading-relaxed"
-            style={{ fontSize: 'clamp(1.5rem, 4vw, 3.5rem)' }}
+            className="font-fun font-bold text-center leading-snug"
+            style={{ fontSize: 'clamp(1.25rem, 2.5vw, 2rem)' }}
           >
             {gameState.currentQuestion.text}
           </h2>
@@ -733,37 +735,117 @@ const VotingScreen = ({ gameState }: { gameState: GameState }) => (
   </motion.div>
 );
 
+// Generate consistent random positions for scattered answers
+const getScatteredPosition = (index: number, total: number) => {
+  // Spread answers across 2-3 rows with slight randomness
+  const cols = Math.min(4, total);
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  
+  // Base positions with some variation
+  const baseX = (col - (cols - 1) / 2) * 220;
+  const baseY = (row - 0.5) * 140;
+  
+  // Add deterministic "randomness" based on index
+  const seedX = Math.sin(index * 7.3) * 30;
+  const seedY = Math.cos(index * 4.7) * 20;
+  const seedRotate = Math.sin(index * 3.1) * 8;
+  
+  return {
+    x: baseX + seedX,
+    y: baseY + seedY,
+    rotate: seedRotate,
+  };
+};
+
 const RevealScreen = ({ 
   gameState, 
-  onNext 
+  onNext,
+  playSound
 }: { 
   gameState: GameState; 
   onNext: () => void;
+  playSound: (type: string) => void;
 }) => {
-  const allRevealed = gameState.revealedIds.length >= gameState.lies.length;
+  const [showVotersForId, setShowVotersForId] = useState<string | null>(null);
+  const [showPointsForId, setShowPointsForId] = useState<string | null>(null);
+  const prevRevealIdRef = useRef<string | null>(null);
+  
+  // Check if all lies that got votes + truth have been revealed
+  const votedLiesCount = gameState.votedLieIds?.length || 0;
+  const allRevealed = gameState.revealedIds.length >= votedLiesCount + 1; // +1 for truth
+  
+  // Handle reveal phase transitions based on currentRevealId changes
+  useEffect(() => {
+    if (gameState.currentRevealId && gameState.currentRevealId !== prevRevealIdRef.current) {
+      const newLie = gameState.lies.find(l => l.id === gameState.currentRevealId);
+      
+      // Play focus sound
+      if (newLie?.isTruth) {
+        playSound('drumroll');
+        setTimeout(() => playSound('truthReveal'), 1200);
+      } else {
+        playSound('answerFocus');
+      }
+      
+      setShowVotersForId(null);
+      setShowPointsForId(null);
+      
+      // After focus animation, show voters
+      const voterDelay = newLie?.isTruth ? 2000 : 800;
+      setTimeout(() => {
+        setShowVotersForId(gameState.currentRevealId);
+        if (newLie?.isTruth) {
+          playSound('correctPlayers');
+        } else {
+          playSound('playersFooled');
+        }
+        
+        // If it's a player lie, show points after voters
+        if (!newLie?.isTruth && newLie?.author && newLie.author !== 'House AI') {
+          setTimeout(() => {
+            setShowPointsForId(gameState.currentRevealId);
+            playSound('pointsAwarded');
+          }, 1000);
+        }
+      }, voterDelay);
+      
+      prevRevealIdRef.current = gameState.currentRevealId;
+    }
+  }, [gameState.currentRevealId, gameState.lies, playSound]);
+  
+  // Get voters for the current reveal
+  const getVotersForLie = (lieId: string) => {
+    return gameState.votesByLie?.[lieId] || [];
+  };
+  
+  // Get players who got the truth right
+  const getTruthVoters = () => {
+    return gameState.votesByLie?.['truth'] || [];
+  };
   
   return (
     <motion.div 
-      className="flex flex-col h-screen p-8 py-10"
+      className="flex flex-col h-screen p-8 py-10 overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       {/* Top: Header */}
-      <div className="flex-shrink-0 text-center mb-6">
+      <div className="flex-shrink-0 text-center mb-4">
         <motion.div 
-          className="text-4xl font-fun mb-4 flex items-center justify-center gap-4"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-3xl font-fun mb-3 flex items-center justify-center gap-4"
+          animate={{ scale: [1, 1.03, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
         >
-          <span className="text-5xl">🔍</span>
+          <span className="text-4xl">🔍</span>
           <span className="text-rainbow">Time for the Truth!</span>
-          <span className="text-5xl">🔍</span>
+          <span className="text-4xl">🔍</span>
         </motion.div>
 
         {gameState.currentQuestion && (
           <motion.div
-            className="text-xl font-fun text-white/80 max-w-4xl mx-auto"
+            className="text-lg font-fun text-white/70 max-w-4xl mx-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
@@ -772,77 +854,243 @@ const RevealScreen = ({
         )}
       </div>
 
-      {/* Middle: Answer Reveals */}
-      <div className="flex-1 flex items-center justify-center">
-        <motion.div 
-          className="grid grid-cols-2 gap-6 w-full max-w-6xl"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          {gameState.lies.map((lie) => {
+      {/* Middle: Answer Reveals - Scattered Layout with Spotlight */}
+      <div className="flex-1 flex items-center justify-center relative">
+        {/* Dimming overlay when focusing */}
+        <AnimatePresence>
+          {gameState.currentRevealId && (
+            <motion.div
+              className="absolute inset-0 bg-black/60 z-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            />
+          )}
+        </AnimatePresence>
+        
+        {/* Scattered answers container */}
+        <div className="relative w-full max-w-6xl h-[400px] flex items-center justify-center">
+          {gameState.lies.map((lie, index) => {
             const isRevealed = gameState.revealedIds.includes(lie.id);
             const isCurrent = gameState.currentRevealId === lie.id;
+            const wasVoted = gameState.votedLieIds?.includes(lie.id) || lie.isTruth;
+            const scatteredPos = getScatteredPosition(index, gameState.lies.length);
+            const voters = getVotersForLie(lie.id);
+            const truthVoters = lie.isTruth ? getTruthVoters() : [];
+            const showingVoters = showVotersForId === lie.id;
+            const showingPoints = showPointsForId === lie.id;
+            
+            // Skip rendering lies that weren't voted for (except truth)
+            if (!wasVoted && !lie.isTruth) {
+              return null;
+            }
             
             return (
               <motion.div
                 key={lie.id}
                 className={`
-                  answer-cartoon font-fun lowercase relative py-8 px-6
-                  ${isRevealed ? (lie.isTruth ? 'truth' : 'lie') : ''}
+                  absolute font-fun lowercase
+                  ${isCurrent ? 'z-30' : isRevealed ? 'z-5' : 'z-20'}
                 `}
-                initial={{ opacity: 0.6 }}
+                initial={{ 
+                  opacity: 0, 
+                  scale: 0.5,
+                  x: scatteredPos.x,
+                  y: scatteredPos.y,
+                  rotate: scatteredPos.rotate,
+                }}
                 animate={{ 
-                  opacity: 1,
-                  scale: isCurrent ? 1.05 : 1,
-                  rotate: isCurrent ? [-1, 1, -1] : 0,
+                  opacity: isCurrent ? 1 : (gameState.currentRevealId && !isRevealed ? 0.3 : 1),
+                  scale: isCurrent ? (lie.isTruth ? 1.4 : 1.2) : (isRevealed ? 0.7 : 0.85),
+                  x: isCurrent ? 0 : scatteredPos.x,
+                  y: isCurrent ? 0 : (isRevealed ? scatteredPos.y + 50 : scatteredPos.y),
+                  rotate: isCurrent ? 0 : scatteredPos.rotate,
                 }}
                 transition={{ 
-                  duration: isCurrent ? 0.3 : 0.3,
-                  rotate: { duration: 0.2, repeat: isCurrent ? Infinity : 0 }
+                  type: 'spring',
+                  stiffness: 200,
+                  damping: 20,
+                  duration: 0.5
                 }}
               >
-                <div className="font-bold text-center text-4xl">{lie.text}</div>
+                {/* Answer card */}
+                <motion.div
+                  className={`
+                    answer-cartoon py-6 px-8 min-w-[200px] max-w-[500px]
+                    ${isRevealed ? (lie.isTruth ? 'truth' : 'lie') : ''}
+                    ${isCurrent && lie.isTruth ? 'ring-4 ring-yellow-400 ring-opacity-75' : ''}
+                  `}
+                  animate={isCurrent ? {
+                    boxShadow: lie.isTruth 
+                      ? ['0 0 20px rgba(255,215,0,0.5)', '0 0 60px rgba(255,215,0,0.8)', '0 0 20px rgba(255,215,0,0.5)']
+                      : ['0 0 10px rgba(0,0,0,0.3)', '0 0 30px rgba(255,100,100,0.5)', '0 0 10px rgba(0,0,0,0.3)']
+                  } : {}}
+                  transition={{ duration: 1, repeat: isCurrent ? Infinity : 0 }}
+                >
+                  <div className={`font-bold text-center ${isCurrent ? 'text-3xl' : 'text-xl'}`}>
+                    {lie.text}
+                  </div>
+                  
+                  {/* Revealed info */}
+                  <AnimatePresence>
+                    {isRevealed && (
+                      <motion.div
+                        className="mt-3 text-center normal-case font-fun"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        {lie.isTruth ? (
+                          <motion.div
+                            className="flex flex-col items-center gap-2"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', delay: 0.2 }}
+                          >
+                            <span className="flex items-center justify-center gap-2 text-xl">
+                              <span className="text-3xl">✅</span>
+                              <span className="text-black font-bold text-2xl">THE TRUTH!</span>
+                              <span className="text-3xl">✅</span>
+                            </span>
+                          </motion.div>
+                        ) : (
+                          <span className="text-black text-lg">
+                            🤥 Lie by: <span className="font-bold">{lie.author}</span>
+                          </span>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
                 
+                {/* Voters reveal panel - shows below the card */}
                 <AnimatePresence>
-                  {isRevealed && (
+                  {isCurrent && showingVoters && (
                     <motion.div
-                      className="text-lg mt-4 text-center normal-case font-fun"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
+                      className="absolute top-full left-1/2 mt-4 -translate-x-1/2 w-max"
+                      initial={{ opacity: 0, y: -20, scale: 0.8 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
                     >
-                      {lie.isTruth ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="text-2xl">✅</span>
-                          <span className="text-black font-bold text-xl">THE TRUTH!</span>
-                          <span className="text-2xl">✅</span>
-                        </span>
-                      ) : (
-                        <span className="text-black">
-                          🤥 Lie by: <span className="font-bold">{lie.author}</span>
-                        </span>
-                      )}
+                      <div className="card-cartoon bg-white/95 px-6 py-4 text-center">
+                        {lie.isTruth ? (
+                          <>
+                            {truthVoters.length > 0 ? (
+                              <>
+                                <div className="text-lg font-fun text-green-700 mb-2">
+                                  🎉 Got it right! 🎉
+                                </div>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                  {truthVoters.map((name, i) => (
+                                    <motion.span
+                                      key={name}
+                                      className="bg-green-500 text-white px-3 py-1 rounded-full font-fun text-lg"
+                                      initial={{ opacity: 0, scale: 0 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ delay: i * 0.1, type: 'spring' }}
+                                    >
+                                      {name} +{1000 * gameState.roundMultiplier}
+                                    </motion.span>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-lg font-fun text-gray-600">
+                                😱 Nobody found the truth!
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {voters.length > 0 ? (
+                              <>
+                                <div className="text-lg font-fun text-red-700 mb-2">
+                                  😈 Fooled these players:
+                                </div>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                  {voters.map((name, i) => (
+                                    <motion.span
+                                      key={name}
+                                      className="bg-red-500 text-white px-3 py-1 rounded-full font-fun text-lg"
+                                      initial={{ opacity: 0, scale: 0 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ delay: i * 0.1, type: 'spring' }}
+                                    >
+                                      {name}
+                                    </motion.span>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-lg font-fun text-gray-600">
+                                Nobody fell for this one
+                              </div>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Points awarded to lie author */}
+                        <AnimatePresence>
+                          {showingPoints && !lie.isTruth && lie.author !== 'House AI' && voters.length > 0 && (
+                            <motion.div
+                              className="mt-3 pt-3 border-t-2 border-gray-200"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0 }}
+                            >
+                              <div className="text-lg font-fun text-purple-700">
+                                💰 <span className="font-bold">{lie.author}</span> earns{' '}
+                                <span className="text-xl font-bold text-green-600">
+                                  +{voters.length * 500 * gameState.roundMultiplier}
+                                </span>{' '}
+                                points!
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
                 
-                {isCurrent && (
-                  <motion.div 
-                    className="absolute -top-6 -right-6 text-4xl"
-                    animate={{ rotate: [0, 20, -20, 0], scale: [1, 1.2, 1] }}
-                    transition={{ duration: 0.5, repeat: Infinity }}
-                  >
-                    👆
-                  </motion.div>
+                {/* Sparkle effect for truth */}
+                {isCurrent && lie.isTruth && (
+                  <>
+                    {[...Array(8)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute text-2xl pointer-events-none"
+                        style={{
+                          left: '50%',
+                          top: '50%',
+                        }}
+                        animate={{
+                          x: [0, Math.cos(i * Math.PI / 4) * 120],
+                          y: [0, Math.sin(i * Math.PI / 4) * 120],
+                          opacity: [1, 0],
+                          scale: [0.5, 1.5],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          delay: i * 0.15,
+                        }}
+                      >
+                        ✨
+                      </motion.div>
+                    ))}
+                  </>
                 )}
               </motion.div>
             );
           })}
-        </motion.div>
+        </div>
       </div>
 
       {/* Bottom: Next Button */}
-      <div className="flex-shrink-0 flex justify-center">
+      <div className="flex-shrink-0 flex justify-center mt-4">
         <AnimatePresence>
           {allRevealed && (
             <motion.div
@@ -954,13 +1202,13 @@ const WelcomeModal = ({
   onContinue: () => void;
 }) => (
   <motion.div
-    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-2 sm:p-4"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
   >
     <motion.div
-      className="card-cartoon p-4 sm:p-5 md:p-6 lg:p-6 max-w-2xl w-full max-h-[88vh] overflow-y-auto text-center relative"
+      className="card-cartoon p-3 sm:p-4 md:p-5 lg:p-6 max-w-xl w-full max-h-[95vh] overflow-y-auto text-center relative"
       initial={{ scale: 0.8, opacity: 0, y: 50 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.8, opacity: 0, y: 50 }}
@@ -971,53 +1219,53 @@ const WelcomeModal = ({
       <motion.img
         src="/images/biffage-logo2.png"
         alt="Biffage"
-        className="max-w-[180px] sm:max-w-[220px] md:max-w-[240px] lg:max-w-[260px] w-full h-auto mx-auto mb-3 sm:mb-4 md:mb-4 lg:mb-4 logo-glow"
+        className="max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[240px] w-full h-auto mx-auto mb-2 sm:mb-3 md:mb-4 logo-glow"
         animate={{ rotate: [-2, 2, -2] }}
         transition={{ duration: 2, repeat: Infinity }}
       />
 
       {/* Title */}
       <h2
-        className="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-fun font-bold mb-3 sm:mb-4 md:mb-4 lg:mb-4"
+        className="text-lg sm:text-xl md:text-2xl font-fun font-bold mb-2 sm:mb-3 md:mb-4"
         style={{ color: '#ffe66d', textShadow: '3px 3px 0 #000' }}
       >
         Welcome to the Party! 🥳
       </h2>
 
       {/* How to play */}
-      <div className="space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 mb-3 sm:mb-4 md:mb-4 lg:mb-4">
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
-          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">🤔</span>
-          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Read the question and write a <span className="text-[#ff6eb4] font-bold">convincing lie</span></p>
+      <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5 mb-2 sm:mb-3 md:mb-4">
+        <div className="flex items-center gap-2 sm:gap-3 text-left bg-white/10 rounded-xl p-1.5 sm:p-2 md:p-2.5 lg:p-3">
+          <span className="text-lg sm:text-xl md:text-2xl flex-shrink-0">🤔</span>
+          <p className="font-fun text-white text-xs sm:text-sm md:text-base">Read the question and write a <span className="text-[#ff6eb4] font-bold">convincing lie</span></p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
-          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">🎯</span>
-          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Vote for what you think is the <span className="text-[#4ade80] font-bold">real answer</span></p>
+        <div className="flex items-center gap-2 sm:gap-3 text-left bg-white/10 rounded-xl p-1.5 sm:p-2 md:p-2.5 lg:p-3">
+          <span className="text-lg sm:text-xl md:text-2xl flex-shrink-0">🎯</span>
+          <p className="font-fun text-white text-xs sm:text-sm md:text-base">Vote for what you think is the <span className="text-[#4ade80] font-bold">real answer</span></p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
-          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">😈</span>
-          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Fool others with your lie to earn <span className="text-[#ffe66d] font-bold">bonus points</span>!</p>
+        <div className="flex items-center gap-2 sm:gap-3 text-left bg-white/10 rounded-xl p-1.5 sm:p-2 md:p-2.5 lg:p-3">
+          <span className="text-lg sm:text-xl md:text-2xl flex-shrink-0">😈</span>
+          <p className="font-fun text-white text-xs sm:text-sm md:text-base">Fool others with your lie to earn <span className="text-[#ffe66d] font-bold">bonus points</span>!</p>
         </div>
       </div>
 
       {/* Join instructions */}
       <div
-        className="bg-gradient-to-r from-[#ff6b35]/20 to-[#ff6eb4]/20 rounded-xl p-3 sm:p-3.5 md:p-4 lg:p-4 mb-3 sm:mb-4 md:mb-4 lg:mb-4 border-4 border-white/20"
+        className="bg-gradient-to-r from-[#ff6b35]/20 to-[#ff6eb4]/20 rounded-xl p-2 sm:p-3 md:p-4 mb-2 sm:mb-3 md:mb-4 border-4 border-white/20"
       >
-        <p className="font-fun text-white/80 text-sm sm:text-sm md:text-base lg:text-base mb-2">
+        <p className="font-fun text-white/80 text-xs sm:text-sm md:text-base mb-1 sm:mb-2">
           📱 Join on your phone or tablet at:
         </p>
         <p
-          className="font-fun text-lg sm:text-xl md:text-xl lg:text-xl font-bold mb-2 sm:mb-2.5 md:mb-2.5 lg:mb-2.5"
+          className="font-fun text-base sm:text-lg md:text-xl font-bold mb-1 sm:mb-2"
           style={{ color: '#38bdf8' }}
         >
           app.biffage.com
         </p>
-        <p className="font-fun text-white/60 text-xs sm:text-xs md:text-sm lg:text-sm mb-1 sm:mb-1.5">Enter this room code:</p>
+        <p className="font-fun text-white/60 text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1">Enter this room code:</p>
         <motion.div
-          className="font-fun font-bold tracking-[0.2em] sm:tracking-[0.25em] md:tracking-[0.3em]"
+          className="font-fun font-bold tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.25em]"
           style={{
-            fontSize: 'clamp(1.75rem, 6vw, 3rem)',
+            fontSize: 'clamp(1.5rem, 5vw, 2.5rem)',
             color: '#ffe66d',
             textShadow: '3px 3px 0 #ff6b35, 6px 6px 0 rgba(0,0,0,0.3)',
           }}
@@ -1030,7 +1278,7 @@ const WelcomeModal = ({
 
       {/* Continue button */}
       <motion.button
-        className="btn-cartoon btn-green text-base sm:text-lg md:text-xl lg:text-xl py-3 sm:py-3.5 md:py-4 lg:py-4 px-6 sm:px-8 md:px-10 lg:px-10"
+        className="btn-cartoon btn-green text-sm sm:text-base md:text-lg lg:text-xl py-2 sm:py-3 md:py-3.5 lg:py-4 px-5 sm:px-6 md:px-8 lg:px-10"
         onClick={onContinue}
         whileHover={{ scale: 1.05, rotate: 2 }}
         whileTap={{ scale: 0.95 }}
@@ -1038,7 +1286,7 @@ const WelcomeModal = ({
         🚀 Let's Play! 🚀
       </motion.button>
 
-      <p className="mt-2 sm:mt-2.5 md:mt-2.5 lg:mt-2.5 text-white/50 font-fun text-xs sm:text-xs md:text-sm">
+      <p className="mt-1.5 sm:mt-2 md:mt-2.5 text-white/50 font-fun text-[10px] sm:text-xs md:text-sm">
         🔊 This will also enable sound
       </p>
     </motion.div>
@@ -1054,12 +1302,19 @@ export const HostPage = () => {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [sfxEnabled, setSfxEnabled] = useState(true);
-  const [autoProgress, setAutoProgress] = useState(false);
+  // Load saved settings from localStorage
+  const [autoProgress, setAutoProgress] = useState(() => {
+    const saved = localStorage.getItem('biffage_auto_progress');
+    return saved === 'true';
+  });
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
-  const [familyMode, setFamilyMode] = useState(true);
+  const [familyMode, setFamilyMode] = useState(() => {
+    const saved = localStorage.getItem('biffage_family_mode');
+    return saved !== 'false'; // Default to true if not set
+  });
   const [musicVolume, setMusicVolumeState] = useState(0.3);
   const [sfxVolume, setSfxVolumeState] = useState(0.8);
   const [currentEmoji, setCurrentEmoji] = useState<{ emoji: string; context?: string } | null>(null);
@@ -1122,17 +1377,7 @@ export const HostPage = () => {
     }
     prevPlayersRef.current = gameState.players.length;
     
-    // Reveal sounds
-    if (currentState === 'REVEAL' && gameState.revealedIds.length > prevRevealIndexRef.current) {
-      const currentLie = gameState.lies.find(l => l.id === gameState.currentRevealId);
-      if (currentLie) {
-        if (currentLie.isTruth) {
-          playSound('revealTruth');
-        } else {
-          playSound('revealLie');
-        }
-      }
-    }
+    // Reveal sounds are now handled directly in RevealScreen component with more precise timing
     prevRevealIndexRef.current = gameState.revealedIds.length;
   }, [gameState, playSound]);
 
@@ -1148,6 +1393,19 @@ export const HostPage = () => {
     const handleRoomCreated = ({ roomCode: code }: { roomCode: string }) => {
       console.log('[Host] Room created:', code);
       setRoomCode(code);
+      
+      // Apply saved settings to the new room
+      const savedAutoProgress = localStorage.getItem('biffage_auto_progress') === 'true';
+      const savedFamilyMode = localStorage.getItem('biffage_family_mode') !== 'false';
+      
+      console.log('[Host] Applying saved settings - Auto Progress:', savedAutoProgress, 'Family Mode:', savedFamilyMode);
+      
+      if (savedAutoProgress) {
+        socket.emit('set_auto_progress', { roomCode: code, enabled: true });
+      }
+      if (!savedFamilyMode) {
+        socket.emit('set_family_mode', { roomCode: code, enabled: false });
+      }
     };
 
     const handleGameState = (state: GameState) => {
@@ -1237,6 +1495,7 @@ export const HostPage = () => {
     e.stopPropagation();
     const newState = !autoProgress;
     setAutoProgress(newState);
+    localStorage.setItem('biffage_auto_progress', String(newState));
     socket?.emit('set_auto_progress', { roomCode, enabled: newState });
   };
 
@@ -1253,6 +1512,7 @@ export const HostPage = () => {
   const handleFamilyModeChange = (enabled: boolean) => {
     const previousMode = familyMode;
     setFamilyMode(enabled);
+    localStorage.setItem('biffage_family_mode', String(enabled));
     if (previousMode !== enabled && roomCode) {
       socket?.emit('set_family_mode', { roomCode, enabled });
     }
@@ -1401,6 +1661,7 @@ export const HostPage = () => {
             key="reveal"
             gameState={gameState}
             onNext={handleNext}
+            playSound={playSound}
           />
         )}
 
@@ -1514,11 +1775,13 @@ export const HostPage = () => {
         onSfxVolumeChange={handleSfxVolumeChange}
         onAutoProgressChange={(enabled) => {
           setAutoProgress(enabled);
+          localStorage.setItem('biffage_auto_progress', String(enabled));
           socket?.emit('set_auto_progress', { roomCode, enabled });
         }}
         onFamilyModeChange={handleFamilyModeChange}
         showQuitButton={gameState?.state !== 'LOBBY' && gameState?.state !== undefined}
         onQuitGame={handleQuitGame}
+        isInLobby={!gameState?.state || gameState?.state === 'LOBBY'}
       />
 
       {/* Welcome Modal - shown on first load */}

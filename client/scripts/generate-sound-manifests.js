@@ -18,7 +18,8 @@ const audioExtensions = ['.mp3', '.ogg', '.wav', '.m4a', '.aac', '.webm'];
 const soundTypes = [
   'click', 'playerJoin', 'countdown', 'countdownFinal', 'gameStart',
   'lieSubmit', 'voteSubmit', 'revealLie', 'revealTruth', 'scoreUp',
-  'roundEnd', 'victory', 'tick', 'whoosh', 'pop', 'error'
+  'roundEnd', 'victory', 'tick', 'whoosh', 'pop', 'error',
+  'answerFocus', 'playersFooled', 'pointsAwarded', 'truthReveal', 'correctPlayers', 'drumroll'
 ];
 
 function getFilesInDirectory(dirPath) {

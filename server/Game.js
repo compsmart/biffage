@@ -40,6 +40,7 @@ class Game {
     // Auto-progress settings
     this.autoProgress = false;
     this.audioPlaying = false;
+    this.revealTimer = null; // Timer for reveal step progression
 
     // Family mode setting
     this.familyMode = true;
@@ -81,24 +82,16 @@ class Game {
 
   checkInactivePlayers() {
     const now = Date.now();
-    const inactivePlayers = [];
     
     for (const [socketId, player] of this.players) {
       const lastHeartbeat = this.playerHeartbeats.get(socketId);
       
-      // If no heartbeat recorded or heartbeat is older than timeout
+      // If no heartbeat recorded or heartbeat is older than timeout, just log it
+      // We do NOT remove players automatically - they can only leave via the Leave Game button
+      // This preserves their score if they temporarily disconnect/reconnect
       if (!lastHeartbeat || (now - lastHeartbeat) > HEARTBEAT_TIMEOUT) {
-        console.log(`[Room ${this.roomCode}] Player ${player.name} (${socketId}) inactive for 30+ seconds`);
-        inactivePlayers.push(socketId);
+        console.log(`[Room ${this.roomCode}] Player ${player.name} (${socketId}) inactive for 30+ seconds (keeping in game)`);
       }
-    }
-    
-    // Remove inactive players
-    for (const socketId of inactivePlayers) {
-      const player = this.players.get(socketId);
-      console.log(`[Room ${this.roomCode}] Removing inactive player: ${player?.name || socketId}`);
-      this.removePlayer(socketId);
-      this.playerHeartbeats.delete(socketId);
     }
   }
 
@@ -107,6 +100,12 @@ class Game {
     this.stopTimer();
     this.stopHeartbeatCheck();
     this.playerHeartbeats.clear();
+    
+    // Clear reveal timer if active
+    if (this.revealTimer) {
+      clearTimeout(this.revealTimer);
+      this.revealTimer = null;
+    }
     
     if (this.gemini && this.gemini.ws) {
       try {
@@ -195,11 +194,23 @@ class Game {
           setTimeout(() => this.nextState(), 1000);
       } else if (this.state === 'MINI_SCOREBOARD') {
           setTimeout(() => this.nextState(), 2000);
+      } else if (this.state === 'REVEAL') {
+          // Clear any pending reveal timer since audio just completed
+          if (this.revealTimer) {
+              clearTimeout(this.revealTimer);
+              this.revealTimer = null;
+          }
+          // Advance to next reveal step (or to MINI_SCOREBOARD if all done)
+          setTimeout(() => this.nextRevealStep(), 1000);
+      } else if (this.state === 'SCOREBOARD') {
+          // Auto-restart game after final scoreboard celebration
+          setTimeout(() => this.nextState(), 5000);
       }
   }
 
   addPlayer(socketId, name) {
     let existingId = null;
+    let isReconnect = false;
     for (const [id, p] of this.players) {
         if (p.name === name && !this.io.sockets.sockets.get(id)) {
             existingId = id;
@@ -213,6 +224,7 @@ class Game {
         this.playerHeartbeats.delete(existingId); // Clean up old heartbeat
         this.players.set(socketId, p);
         console.log(`Player ${name} reconnected`);
+        isReconnect = true;
     } else {
         this.players.set(socketId, { name, score: 0, currentLie: '', currentVote: null });
     }
@@ -220,7 +232,8 @@ class Game {
     // Record initial heartbeat for new player
     this.playerHeartbeats.set(socketId, Date.now());
 
-    this.broadcastState();
+    // Pass the new player's name for the welcome message (only for new players, not reconnects)
+    this.broadcastState(isReconnect ? null : name);
   }
 
   removePlayer(socketId) {
@@ -272,7 +285,7 @@ class Game {
       return this.currentQuestionIndex >= 9;
   }
 
-  broadcastState() {
+  broadcastState(newPlayerName = null) {
     const playerList = Array.from(this.players.entries()).map(([id, p]) => ({
       id,
       name: p.name,
@@ -291,6 +304,33 @@ class Game {
       ? this.revealOrder[this.revealIndex].id
       : null;
 
+    // Build vote mapping: which players voted for which lie
+    const votesByLie = {};
+    const votedLieIds = [];
+    if (this.state === 'REVEAL') {
+      // Initialize votesByLie for all lies
+      this.currentLies.forEach(lie => {
+        votesByLie[lie.id] = [];
+      });
+      
+      // Map player votes to lie IDs
+      this.players.forEach((player, playerId) => {
+        if (player.currentVote) {
+          const voteTarget = player.currentVote === 'truth' ? 'truth' : player.currentVote;
+          if (votesByLie[voteTarget]) {
+            votesByLie[voteTarget].push(player.name);
+          }
+        }
+      });
+      
+      // Get list of lie IDs that received votes (excluding truth for this list)
+      this.currentLies.forEach(lie => {
+        if (!lie.isTruth && votesByLie[lie.id] && votesByLie[lie.id].length > 0) {
+          votedLieIds.push(lie.id);
+        }
+      });
+    }
+
     const gameStatePayload = {
       state: this.state,
       players: playerList,
@@ -303,6 +343,8 @@ class Game {
       isFinalFibbage: this.isFinalFibbage(),
       currentRevealId: currentRevealId,
       revealedIds: this.state === 'REVEAL' ? this.revealOrder.slice(0, this.revealIndex + 1).map(l => l.id) : [],
+      votesByLie: this.state === 'REVEAL' ? votesByLie : {},
+      votedLieIds: this.state === 'REVEAL' ? votedLieIds : [],
       autoProgress: this.autoProgress,
       hostPersona: this.hostPersona,
       hostPersonas: this.availablePersonas.map(p => ({
@@ -328,11 +370,11 @@ class Game {
     // Send Context to Gemini Server-Side
     if (this.gemini && this.gemini.isConnected) {
         this.audioPlaying = true;
-        this.sendGeminiUpdate(question);
+        this.sendGeminiUpdate(question, newPlayerName);
     }
   }
 
-  sendGeminiUpdate(question) {
+  sendGeminiUpdate(question, newPlayerName = null) {
         const context = {
             state: this.state,
             question: question,
@@ -345,7 +387,11 @@ class Game {
         
         let prompt = "";
         if (context.state === 'LOBBY') {
-            prompt = `A new player joined! We have ${context.playerCount} players. Encourage them to start.`;
+            if (newPlayerName) {
+                prompt = `${newPlayerName} just joined the game! Welcome them by name and get them excited to play. We now have ${context.playerCount} player${context.playerCount > 1 ? 's' : ''}. ${context.playerCount >= 2 ? 'Encourage them to start the game!' : 'We need at least 2 players to start.'}`;
+            } else {
+                prompt = `We're in the lobby with ${context.playerCount} player${context.playerCount > 1 ? 's' : ''}. Keep the energy up!`;
+            }
         } else if (context.state === 'ROUND_INTRO') {
             // Round introduction prompts
             if (context.roundNumber === 1) {
@@ -584,14 +630,35 @@ class Game {
   
   startReveal() {
       this.stopTimer(); // Stop voting timer
+      
+      // Clear any existing reveal timer
+      if (this.revealTimer) {
+          clearTimeout(this.revealTimer);
+          this.revealTimer = null;
+      }
+      
       this.state = 'REVEAL';
       this.revealIndex = -1;
       
-      // Create reveal order: shuffle lies randomly, but save truth for last
+      // Build vote counts for each lie
+      const voteCounts = {};
+      this.currentLies.forEach(lie => {
+        voteCounts[lie.id] = 0;
+      });
+      this.players.forEach((player) => {
+        if (player.currentVote) {
+          const voteTarget = player.currentVote === 'truth' ? 'truth' : player.currentVote;
+          if (voteCounts[voteTarget] !== undefined) {
+            voteCounts[voteTarget]++;
+          }
+        }
+      });
+      
+      // Create reveal order: only lies that received votes, shuffled, truth at end
       const truth = this.currentLies.find(l => l.isTruth);
-      const lies = this.currentLies.filter(l => !l.isTruth);
-      lies.sort(() => Math.random() - 0.5);
-      this.revealOrder = [...lies, truth];
+      const votedLies = this.currentLies.filter(l => !l.isTruth && voteCounts[l.id] > 0);
+      votedLies.sort(() => Math.random() - 0.5);
+      this.revealOrder = [...votedLies, truth];
       
       this.broadcastState();
       
@@ -602,25 +669,44 @@ class Game {
   nextRevealStep() {
       if (this.state !== 'REVEAL') return;
       
+      // Clear any pending reveal timer
+      if (this.revealTimer) {
+          clearTimeout(this.revealTimer);
+          this.revealTimer = null;
+      }
+      
       this.revealIndex++;
       if (this.revealIndex >= this.revealOrder.length) {
           // Done revealing - go to mini scoreboard
           this.broadcastState(); 
           
-          // Auto-advance to mini scoreboard after a delay
-          setTimeout(() => {
+          // Transition to mini scoreboard
+          // When auto-progress is ON, this is triggered by handleAutoProgress after audio
+          // When auto-progress is OFF, use a fixed 2s delay
+          if (!this.autoProgress) {
+              setTimeout(() => {
+                  this.state = 'MINI_SCOREBOARD';
+                  this.broadcastState();
+              }, 2000);
+          } else {
+              // Auto-progress: transition immediately (audio already completed)
               this.state = 'MINI_SCOREBOARD';
               this.broadcastState();
-          }, 2000);
+          }
           return;
       }
       
       this.broadcastState();
       
-      // Schedule next step (approx time for narration + reading)
-      // In a real implementation, we might wait for Gemini to finish speaking
-      // For now, fixed timer
-      setTimeout(() => this.nextRevealStep(), 6000); 
+      // Schedule next reveal step
+      if (this.autoProgress) {
+          // Auto-progress: wait for audio to complete (handled by handleAutoProgress)
+          // Use a long fallback timer as safety net in case audio doesn't trigger
+          this.revealTimer = setTimeout(() => this.nextRevealStep(), 15000);
+      } else {
+          // Manual mode: fixed 6-second timer between reveals
+          this.revealTimer = setTimeout(() => this.nextRevealStep(), 6000);
+      }
   }
 
   nextState() {
@@ -684,6 +770,12 @@ class Game {
       
       // Stop any active timer
       this.stopTimer();
+      
+      // Clear reveal timer if active
+      if (this.revealTimer) {
+          clearTimeout(this.revealTimer);
+          this.revealTimer = null;
+      }
       
       // Reset game state
       this.currentQuestionIndex = 0;

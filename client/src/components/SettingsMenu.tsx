@@ -14,6 +14,7 @@ interface SettingsMenuProps {
   onFamilyModeChange: (enabled: boolean) => void;
   showQuitButton?: boolean;
   onQuitGame?: () => void;
+  isInLobby?: boolean;
 }
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({
@@ -29,6 +30,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onFamilyModeChange,
   showQuitButton = false,
   onQuitGame,
+  isInLobby = true,
 }) => {
   return (
     <AnimatePresence>
@@ -141,9 +143,9 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
 
                 {/* Auto Progress Toggle */}
                 <motion.div
-                  className="flex items-center justify-between p-4 card-cartoon"
+                  className={`flex items-center justify-between p-4 card-cartoon ${!isInLobby ? 'opacity-50' : ''}`}
                   initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
+                  animate={{ y: 0, opacity: isInLobby ? 1 : 0.5 }}
                   transition={{ delay: 0.4 }}
                 >
                   <div className="flex items-center gap-3">
@@ -151,16 +153,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                     <div>
                       <div className="text-xl font-fun text-white">Auto Progress</div>
                       <div className="text-sm font-fun text-white/70">
-                        Automatically advance after AI host finishes speaking
+                        {isInLobby 
+                          ? 'Automatically advance after AI host finishes speaking'
+                          : '🔒 Can only be changed in lobby'}
                       </div>
                     </div>
                   </div>
                   <motion.button
                     className={`relative w-16 h-8 rounded-full transition-colors ${
                       autoProgress ? 'bg-green-500' : 'bg-gray-400'
-                    }`}
-                    onClick={() => onAutoProgressChange(!autoProgress)}
-                    whileTap={{ scale: 0.95 }}
+                    } ${!isInLobby ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    onClick={() => isInLobby && onAutoProgressChange(!autoProgress)}
+                    whileTap={isInLobby ? { scale: 0.95 } : {}}
+                    disabled={!isInLobby}
                   >
                     <motion.div
                       className="absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg"
@@ -172,9 +177,9 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
 
                 {/* Family Mode Toggle */}
                 <motion.div
-                  className="flex items-center justify-between p-4 card-cartoon"
+                  className={`flex items-center justify-between p-4 card-cartoon ${!isInLobby ? 'opacity-50' : ''}`}
                   initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
+                  animate={{ y: 0, opacity: isInLobby ? 1 : 0.5 }}
                   transition={{ delay: 0.5 }}
                 >
                   <div className="flex items-center gap-3">
@@ -182,18 +187,21 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                     <div>
                       <div className="text-xl font-fun text-white">Family Mode</div>
                       <div className="text-sm font-fun text-white/70">
-                        {familyMode 
-                          ? 'AI host uses family-friendly humor'
-                          : 'AI host uses adult-oriented humor'}
+                        {isInLobby 
+                          ? (familyMode 
+                              ? 'AI host uses family-friendly humor'
+                              : 'AI host uses adult-oriented humor')
+                          : '🔒 Can only be changed in lobby'}
                       </div>
                     </div>
                   </div>
                   <motion.button
                     className={`relative w-16 h-8 rounded-full transition-colors ${
                       familyMode ? 'bg-blue-500' : 'bg-purple-500'
-                    }`}
-                    onClick={() => onFamilyModeChange(!familyMode)}
-                    whileTap={{ scale: 0.95 }}
+                    } ${!isInLobby ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                    onClick={() => isInLobby && onFamilyModeChange(!familyMode)}
+                    whileTap={isInLobby ? { scale: 0.95 } : {}}
+                    disabled={!isInLobby}
                   >
                     <motion.div
                       className="absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow-lg"

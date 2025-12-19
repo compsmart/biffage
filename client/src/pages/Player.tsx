@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSocket } from '../context/SocketContext';
+import { useSocket, useSocketStatus } from '../context/SocketContext';
 import { useSounds } from '../hooks/useSounds';
 import { 
   Background, 
@@ -574,7 +574,7 @@ const MiniScoreboardWaitingScreen = ({ score, name }: { score: number; name: str
       transition={{ type: 'spring' }}
     >
       <motion.div
-        className="mb-4"
+        className="mb-4 flex justify-center items-center"
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 1, repeat: Infinity }}
       >
@@ -598,6 +598,7 @@ const MiniScoreboardWaitingScreen = ({ score, name }: { score: number; name: str
 
 export const PlayerPage = () => {
   const socket = useSocket();
+  const { isConnected } = useSocketStatus();
   const [joined, setJoined] = useState(false);
   const [name, setName] = useState('');
   const [roomCode, setRoomCode] = useState('');
@@ -610,6 +611,8 @@ export const PlayerPage = () => {
   const prevStateRef = useRef<string | null>(null);
   const reconnectAttempted = useRef(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastVisibilityHiddenRef = useRef<number | null>(null);
+  const isRejoinPendingRef = useRef(false);
   
   const { playSound, resumeAudio } = useSounds();
   
@@ -664,7 +667,8 @@ export const PlayerPage = () => {
         reconnectTimeoutRef.current = null;
       }
       
-      setIsReconnecting(false);
+      const isRejoin = isRejoinPendingRef.current;
+      isRejoinPendingRef.current = false;
       
       if (active) {
         const savedName = localStorage.getItem(STORAGE_KEY_NAME);
@@ -674,6 +678,10 @@ export const PlayerPage = () => {
           setRoomCode(code);
           socket.emit('join_player', { roomCode: code, playerName: savedName });
           setJoined(true);
+          setIsReconnecting(false);
+          console.log('🔄 Rejoined room:', code, 'as', savedName);
+        } else {
+          setIsReconnecting(false);
         }
       } else {
         // Room no longer exists, clear storage and show error
@@ -681,7 +689,14 @@ export const PlayerPage = () => {
         localStorage.removeItem(STORAGE_KEY_NAME);
         setStoredRoomCode(null);
         setStoredName(null);
-        setReconnectError('Game room no longer exists. Please join a new game.');
+        setJoined(false);
+        setGameState(null);
+        setIsReconnecting(false);
+        
+        // Only show error if this was a rejoin attempt (not initial load with stale data)
+        if (isRejoin) {
+          setReconnectError('Game room no longer exists. Please join a new game.');
+        }
       }
     };
     
@@ -691,6 +706,96 @@ export const PlayerPage = () => {
       socket.off('room_check_result', handleRoomCheckResult);
     };
   }, [socket]);
+  
+  // Attempt to rejoin the room
+  const attemptRejoin = useCallback(() => {
+    if (!socket || !isConnected) return;
+    
+    const savedRoom = localStorage.getItem(STORAGE_KEY_ROOM);
+    const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+    
+    if (savedRoom && savedName) {
+      console.log('🔄 Attempting to rejoin room:', savedRoom);
+      isRejoinPendingRef.current = true;
+      setIsReconnecting(true);
+      
+      // Set timeout for room check
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setIsReconnecting(false);
+        isRejoinPendingRef.current = false;
+        setReconnectError('Could not reach the game server. Please try again.');
+        localStorage.removeItem(STORAGE_KEY_ROOM);
+        localStorage.removeItem(STORAGE_KEY_NAME);
+        setStoredRoomCode(null);
+        setStoredName(null);
+        setJoined(false);
+        setGameState(null);
+      }, 5000);
+      
+      socket.emit('check_room', { roomCode: savedRoom });
+    }
+  }, [socket, isConnected]);
+  
+  // Handle visibility change - rejoin when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Track when we went hidden
+        lastVisibilityHiddenRef.current = Date.now();
+        console.log('📱 Player tab hidden');
+      } else {
+        // Tab became visible again
+        const hiddenDuration = lastVisibilityHiddenRef.current 
+          ? Date.now() - lastVisibilityHiddenRef.current 
+          : 0;
+        console.log(`📱 Player tab visible (was hidden for ${Math.round(hiddenDuration / 1000)}s)`);
+        
+        // If we think we're joined and have stored credentials, attempt rejoin
+        // This handles the case where our socket reconnected with a new ID
+        const savedRoom = localStorage.getItem(STORAGE_KEY_ROOM);
+        const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+        
+        if (savedRoom && savedName && !isRejoinPendingRef.current) {
+          // Small delay to let socket finish reconnecting
+          setTimeout(() => {
+            if (socket && isConnected) {
+              console.log('🔄 Visibility restored - checking room status and rejoining...');
+              attemptRejoin();
+            }
+          }, 500);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [socket, isConnected, attemptRejoin]);
+  
+  // Handle socket reconnection - rejoin the room when socket reconnects
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleConnect = () => {
+      const savedRoom = localStorage.getItem(STORAGE_KEY_ROOM);
+      const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+      
+      // If we have stored credentials, rejoin the room
+      if (savedRoom && savedName && !isRejoinPendingRef.current) {
+        console.log('🔌 Socket connected/reconnected - rejoining room...');
+        // Small delay to ensure socket is fully ready
+        setTimeout(() => attemptRejoin(), 300);
+      }
+    };
+    
+    socket.on('connect', handleConnect);
+    
+    return () => {
+      socket.off('connect', handleConnect);
+    };
+  }, [socket, attemptRejoin]);
   
   // Handle game state sound effects
   useEffect(() => {
