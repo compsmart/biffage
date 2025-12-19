@@ -1013,7 +1013,7 @@ const WelcomeModal = ({
         >
           app.biffage.com
         </p>
-        <p className="font-fun text-white/60 text-sm mb-2">Enter this room code:</p>
+        <p className="font-fun text-white/60 text-sm">Enter this room code:</p>
         <motion.div 
           className="font-fun font-bold tracking-[0.3em]"
           style={{
