@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "build:strict": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-sounds": "node scripts/generate-sound-manifests.js",
+    "generate-music": "node scripts/generate-music-manifest.js",
+    "generate-audio": "npm run generate-sounds && npm run generate-music"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

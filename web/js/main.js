@@ -433,3 +433,89 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   });
 });
 
+// ===== MOBILE HOST MODAL =====
+class MobileHostModal {
+  constructor() {
+    this.modal = document.getElementById('mobile-host-modal');
+    this.closeBtn = document.getElementById('modal-close-btn');
+    this.hostButtons = document.querySelectorAll('.btn-host');
+    this.isMobile = this.checkIfMobile();
+    this.clickHandlers = new Map();
+  }
+
+  checkIfMobile() {
+    // Check screen width (mobile/small screens)
+    const isSmallScreen = window.innerWidth <= 768;
+    
+    // Check user agent for mobile devices
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    );
+    
+    return isSmallScreen || isMobileDevice;
+  }
+
+  handleHostClick(e) {
+    if (this.checkIfMobile()) {
+      e.preventDefault();
+      this.show();
+    }
+  }
+
+  init() {
+    if (!this.modal || !this.closeBtn) return;
+
+    // Handle close button click
+    this.closeBtn.addEventListener('click', () => this.hide());
+
+    // Handle overlay click (close when clicking outside modal)
+    this.modal.addEventListener('click', (e) => {
+      if (e.target === this.modal) {
+        this.hide();
+      }
+    });
+
+    // Handle Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.modal.classList.contains('active')) {
+        this.hide();
+      }
+    });
+
+    // Add click handlers to all host buttons
+    // They will check if mobile on each click
+    this.hostButtons.forEach(btn => {
+      const handler = (e) => this.handleHostClick(e);
+      btn.addEventListener('click', handler);
+      this.clickHandlers.set(btn, handler);
+    });
+
+    // Update button handlers on resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        this.isMobile = this.checkIfMobile();
+      }, 250);
+    });
+  }
+
+  show() {
+    if (this.modal) {
+      this.modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  hide() {
+    if (this.modal) {
+      this.modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  }
+}
+
+// Initialize mobile host modal
+const mobileHostModal = new MobileHostModal();
+mobileHostModal.init();
+

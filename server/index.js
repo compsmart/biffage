@@ -123,6 +123,14 @@ io.on('connection', (socket) => {
      roomManager.handleSetAutoProgress(socket, roomCode, enabled);
   });
 
+  socket.on('request_change_persona', ({ roomCode, personaId }) => {
+    roomManager.handleChangePersona(socket, roomCode, personaId);
+  });
+
+  socket.on('set_family_mode', ({ roomCode, enabled }) => {
+    roomManager.handleSetFamilyMode(socket, roomCode, enabled);
+  });
+
   socket.on('disconnect', (reason) => {
     const disconnectTime = new Date().toISOString();
     const connectionDuration = Date.now() - new Date(connectTime).getTime();

@@ -49,7 +49,7 @@ const Landing = () => (
         transition={{ duration: 0.8, type: 'spring' }}
       >
         <motion.h1 
-          className="font-fun font-black mb-6"
+          className="font-fun font-black mb-6 logo-glow"
           style={{
             fontSize: 'clamp(4rem, 15vw, 10rem)',
             color: '#ffe66d',

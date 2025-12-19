@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const GeminiService = require('./GeminiService');
+const hostPersonas = require('./hostPersonas');
 
 // Load questions
 const questionsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/questions.json'), 'utf8'));
@@ -35,14 +36,29 @@ class Game {
     // Auto-progress settings
     this.autoProgress = false;
     this.audioPlaying = false;
-    
-    // Gemini Service
+
+    // Family mode setting
+    this.familyMode = true;
+
+    // Host persona & Gemini Service
+    this.hostPersona = null;
+    this.availablePersonas = hostPersonas;
     this.gemini = null;
   }
   
-  initializeGemini() {
+  initializeGemini(persona, familyMode = null) {
       const apiKey = process.env.GEMINI_API_KEY;
       if (apiKey) {
+          // Set or keep persona; if none passed, pick a random one
+          if (persona) {
+              this.hostPersona = persona;
+          } else if (!this.hostPersona && this.availablePersonas.length > 0) {
+              this.hostPersona = this.availablePersonas[Math.floor(Math.random() * this.availablePersonas.length)];
+          }
+
+          // Use provided familyMode or current setting
+          const modeToUse = familyMode !== null ? familyMode : this.familyMode;
+
           this.gemini = new GeminiService(
               apiKey, 
               (audioBuffer) => {
@@ -57,7 +73,13 @@ class Game {
                   if (this.autoProgress) {
                       this.handleAutoProgress();
                   }
-              }
+              },
+              // Emoji callback from Gemini tool calls
+              ({ emoji, context }) => {
+                  this.io.to(this.roomCode).emit('show_emoji', { emoji, context });
+              },
+              this.hostPersona,
+              modeToUse
           );
           this.gemini.connect();
       } else {
@@ -68,6 +90,30 @@ class Game {
   setAutoProgress(enabled) {
       this.autoProgress = enabled;
       console.log(`Auto-progress ${enabled ? 'enabled' : 'disabled'} for room ${this.roomCode}`);
+  }
+
+  setFamilyMode(enabled) {
+      const previousMode = this.familyMode;
+      this.familyMode = enabled;
+      console.log(`Family mode ${enabled ? 'enabled' : 'disabled'} for room ${this.roomCode}`);
+
+      // If mode changed and Gemini is active, restart with new mode
+      if (previousMode !== enabled && this.gemini) {
+          // Close existing Gemini connection
+          if (this.gemini.ws) {
+              try {
+                  this.gemini.ws.close();
+              } catch (e) {
+                  console.error('Error closing Gemini websocket on family mode change:', e);
+              }
+          }
+          this.gemini = null;
+
+          // Re-initialize Gemini with current persona and new family mode
+          if (this.hostPersona) {
+              this.initializeGemini(this.hostPersona, enabled);
+          }
+      }
   }
   
   handleAutoProgress() {
@@ -157,7 +203,7 @@ class Game {
       ? this.revealOrder[this.revealIndex].id
       : null;
 
-    this.io.to(this.roomCode).emit('game_state', {
+    const gameStatePayload = {
       state: this.state,
       players: playerList,
       currentQuestion: question,
@@ -169,8 +215,27 @@ class Game {
       isFinalFibbage: this.isFinalFibbage(),
       currentRevealId: currentRevealId,
       revealedIds: this.state === 'REVEAL' ? this.revealOrder.slice(0, this.revealIndex + 1).map(l => l.id) : [],
-      autoProgress: this.autoProgress
-    });
+      autoProgress: this.autoProgress,
+      hostPersona: this.hostPersona,
+      hostPersonas: this.availablePersonas.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        avatarKey: p.avatarKey,
+        gender: p.gender,
+        voiceName: p.voiceName
+      }))
+    };
+    
+    // Debug log for hostPersonas
+    if (this.state === 'LOBBY') {
+      console.log(`[Room ${this.roomCode}] Broadcasting game_state with ${gameStatePayload.hostPersonas.length} available personas`);
+      console.log(`[Room ${this.roomCode}] availablePersonas array length: ${this.availablePersonas ? this.availablePersonas.length : 'undefined'}`);
+    }
+    
+    console.log(`[Room ${this.roomCode}] Emitting game_state event to room ${this.roomCode}`);
+    this.io.to(this.roomCode).emit('game_state', gameStatePayload);
+    console.log(`[Room ${this.roomCode}] game_state event emitted`);
     
     // Send Context to Gemini Server-Side
     if (this.gemini && this.gemini.isConnected) {
@@ -474,7 +539,7 @@ class Game {
       if (this.state === 'LOBBY') {
           // Start game -> go to round intro
           this.state = 'ROUND_INTRO';
-          // Initialize Gemini when game starts
+          // Initialize Gemini when game starts (if not already running)
           if (!this.gemini) {
               this.initializeGemini();
           }

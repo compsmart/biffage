@@ -1,8 +1,8 @@
 /**
- * SoundManager - Web Audio API based sound effects generator
+ * SoundManager - Plays sound effects from files with fallback to synthesized sounds
  * 
- * Generates synthesized game sounds for a party trivia game.
- * No external assets needed - all sounds are created programmatically!
+ * Supports random sound selection from directories for each sound type.
+ * Falls back to synthesized sounds if no files are available.
  */
 
 export type SoundType = 
@@ -28,13 +28,105 @@ class SoundManager {
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private musicOscillators: OscillatorNode[] = [];
+  private musicElement: HTMLAudioElement | null = null;
+  private musicFiles: string[] = [];
   private isMusicPlaying = false;
   private isEnabled = true;
   private isMusicEnabled = true;
+  private musicFadeTimeout: number | null = null;
+  
+  // Cache of available sound files for each type (discovered dynamically)
+  private soundFiles: Map<SoundType, string[]> = new Map();
+  // Cache of loaded audio buffers
+  private audioBuffers: Map<string, AudioBuffer> = new Map();
+  // Currently playing audio sources (for cleanup)
+  private activeSources: Set<AudioBufferSourceNode> = new Set();
+  // Track which directories we've already scanned
+  private scannedDirectories: Set<SoundType> = new Set();
+  // Common audio file extensions to try
+  private readonly audioExtensions = ['.mp3', '.ogg', '.wav', '.m4a', '.aac', '.webm'];
 
   constructor() {
     // Audio context will be created on first user interaction
+    // Initialize empty arrays for all sound types
+    const allTypes: SoundType[] = [
+      'click', 'playerJoin', 'countdown', 'countdownFinal', 'gameStart',
+      'lieSubmit', 'voteSubmit', 'revealLie', 'revealTruth', 'scoreUp',
+      'roundEnd', 'victory', 'tick', 'whoosh', 'pop', 'error'
+    ];
+    allTypes.forEach(type => {
+      this.soundFiles.set(type, []);
+    });
+    
+    // Discover music files
+    this.discoverMusicFiles();
+  }
+
+  /**
+   * Discover available music files
+   */
+  private async discoverMusicFiles() {
+    // Try to load a manifest file first
+    try {
+      const manifestUrl = '/music/manifest.json';
+      const manifestResponse = await fetch(manifestUrl);
+      if (manifestResponse.ok) {
+        const manifest = await manifestResponse.json();
+        if (Array.isArray(manifest.files)) {
+          this.musicFiles = manifest.files;
+          return;
+        }
+      }
+    } catch (e) {
+      // No manifest file, continue with discovery
+    }
+
+    // Try common file patterns
+    const audioExtensions = ['.mp3', '.ogg', '.wav', '.m4a', '.aac', '.webm'];
+    const discoveredFiles: string[] = [];
+
+    // Try numbered and common patterns
+    const patterns = [
+      ...audioExtensions.map(ext => `music${ext}`),
+      ...Array.from({ length: 20 }, (_, i) => 
+        audioExtensions.map(ext => `music${i + 1}${ext}`)
+      ).flat(),
+    ];
+
+    // Test each pattern
+    const testPromises = patterns.map(async (filename) => {
+      const url = `/music/${filename}`;
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (response.ok) {
+          return filename;
+        }
+      } catch (e) {
+        // File doesn't exist
+      }
+      return null;
+    });
+
+    const results = await Promise.all(testPromises);
+    discoveredFiles.push(...results.filter((f): f is string => f !== null));
+
+    // Also try to discover files with common names
+    const commonNames = ['Farty-McSty'];
+    for (const name of commonNames) {
+      for (const ext of audioExtensions) {
+        const filename = `${name}${ext}`;
+        try {
+          const response = await fetch(`/music/${filename}`, { method: 'HEAD' });
+          if (response.ok && !discoveredFiles.includes(filename)) {
+            discoveredFiles.push(filename);
+          }
+        } catch (e) {
+          // File doesn't exist
+        }
+      }
+    }
+
+    this.musicFiles = discoveredFiles;
   }
 
   private ensureContext(): AudioContext {
@@ -74,8 +166,17 @@ class SoundManager {
   // Enable/disable music only
   setMusicEnabled(enabled: boolean) {
     this.isMusicEnabled = enabled;
-    if (this.musicGain) {
-      this.musicGain.gain.value = enabled ? 0.3 : 0;
+
+    // Control volume or pause/resume the background track
+    if (this.musicElement) {
+      if (!enabled) {
+        this.musicElement.pause();
+      } else if (this.isMusicPlaying) {
+        // Resume if music is supposed to be playing
+        this.musicElement.play().catch(() => {
+          // Ignore play errors (e.g. autoplay restrictions)
+        });
+      }
     }
   }
 
@@ -85,10 +186,211 @@ class SoundManager {
     }
   }
 
-  // Play a synthesized sound effect
+  setMusicVolume(volume: number) {
+    if (this.musicGain) {
+      this.musicGain.gain.value = Math.max(0, Math.min(1, volume));
+    }
+  }
+
+  setSfxVolume(volume: number) {
+    if (this.sfxGain) {
+      this.sfxGain.gain.value = Math.max(0, Math.min(1, volume));
+    }
+  }
+
+  getMusicVolume(): number {
+    return this.musicGain ? this.musicGain.gain.value : 0.3;
+  }
+
+  getSfxVolume(): number {
+    return this.sfxGain ? this.sfxGain.gain.value : 0.8;
+  }
+
+  getMasterVolume(): number {
+    return this.masterGain ? this.masterGain.gain.value : 0.7;
+  }
+
+  /**
+   * Discover sound files in a directory by trying common patterns
+   * This is a best-effort approach since we can't list directory contents in the browser
+   */
+  private async discoverSoundFiles(type: SoundType): Promise<string[]> {
+    if (this.scannedDirectories.has(type)) {
+      // Already scanned, return cached results
+      return this.soundFiles.get(type) || [];
+    }
+
+    const discoveredFiles: string[] = [];
+    const ctx = this.ensureContext();
+    
+    // Try to load a manifest file first (if it exists)
+    try {
+      const manifestUrl = `/sounds/${type}/manifest.json`;
+      const manifestResponse = await fetch(manifestUrl);
+      if (manifestResponse.ok) {
+        const manifest = await manifestResponse.json();
+        if (Array.isArray(manifest.files)) {
+          discoveredFiles.push(...manifest.files);
+          this.soundFiles.set(type, discoveredFiles);
+          this.scannedDirectories.add(type);
+          return discoveredFiles;
+        }
+      }
+    } catch (e) {
+      // No manifest file, continue with discovery
+    }
+
+    // Try common file patterns
+    const patterns = [
+      // Common names
+      `${type}.mp3`, `${type}.ogg`, `${type}.wav`,
+      // Numbered variations
+      ...Array.from({ length: 10 }, (_, i) => [
+        `${type}${i + 1}.mp3`,
+        `${type}${i + 1}.ogg`,
+        `${type}${i + 1}.wav`,
+        `${type}_${i + 1}.mp3`,
+        `${type}_${i + 1}.ogg`,
+        `${type}_${i + 1}.wav`,
+      ]).flat(),
+      // Generic numbered
+      ...Array.from({ length: 20 }, (_, i) => [
+        `sound${i + 1}.mp3`,
+        `sound${i + 1}.ogg`,
+        `sound${i + 1}.wav`,
+      ]).flat(),
+    ];
+
+    // Test each pattern by attempting to fetch it
+    const testPromises = patterns.map(async (filename) => {
+      const url = `/sounds/${type}/${filename}`;
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (response.ok) {
+          return filename;
+        }
+      } catch (e) {
+        // File doesn't exist or can't be accessed
+      }
+      return null;
+    });
+
+    const results = await Promise.all(testPromises);
+    discoveredFiles.push(...results.filter((f): f is string => f !== null));
+
+    // Cache the results
+    this.soundFiles.set(type, discoveredFiles);
+    this.scannedDirectories.add(type);
+
+    return discoveredFiles;
+  }
+
+  /**
+   * Load an audio file and return its buffer
+   */
+  private async loadAudioFile(type: SoundType, filename: string): Promise<AudioBuffer | null> {
+    const cacheKey = `${type}/${filename}`;
+    
+    // Return cached buffer if available
+    if (this.audioBuffers.has(cacheKey)) {
+      return this.audioBuffers.get(cacheKey)!;
+    }
+
+    const ctx = this.ensureContext();
+    const url = `/sounds/${type}/${filename}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        return null;
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      
+      // Cache the buffer
+      this.audioBuffers.set(cacheKey, audioBuffer);
+      return audioBuffer;
+    } catch (error) {
+      console.warn(`Failed to load sound file: ${url}`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Play a sound file from the given buffer
+   */
+  private playAudioBuffer(buffer: AudioBuffer) {
+    const ctx = this.ensureContext();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    
+    const gain = ctx.createGain();
+    gain.gain.value = 1.0;
+    gain.connect(this.sfxGain!);
+    
+    source.connect(gain);
+    
+    // Track active sources for cleanup
+    this.activeSources.add(source);
+    source.onended = () => {
+      this.activeSources.delete(source);
+    };
+    
+    source.start(0);
+  }
+
+  /**
+   * Play a random sound file for the given type, or fall back to synthesized sound
+   */
+  private async playSoundFile(type: SoundType): Promise<boolean> {
+    // Discover files if we haven't scanned this directory yet
+    let files = this.soundFiles.get(type) || [];
+    if (!this.scannedDirectories.has(type)) {
+      files = await this.discoverSoundFiles(type);
+    }
+    
+    if (files.length === 0) {
+      // No files available, use synthesized sound
+      return false;
+    }
+
+    // Pick a random file
+    const randomFile = files[Math.floor(Math.random() * files.length)];
+    
+    // Try to load and play the file
+    try {
+      const buffer = await this.loadAudioFile(type, randomFile);
+      if (buffer) {
+        this.playAudioBuffer(buffer);
+        return true;
+      }
+    } catch (error) {
+      console.warn(`Failed to play sound file: ${type}/${randomFile}`, error);
+    }
+    
+    // File failed to load, fall back to synthesized
+    return false;
+  }
+
+  // Play a sound effect (file or synthesized)
   play(type: SoundType) {
     if (!this.isEnabled) return;
     
+    // Try to play a sound file first (async, fire-and-forget)
+    this.playSoundFile(type).then(played => {
+      // If no file was played, fall back to synthesized sound
+      if (!played) {
+        this.playSynthesizedSound(type);
+      }
+    }).catch(() => {
+      // Error occurred, fall back to synthesized sound
+      this.playSynthesizedSound(type);
+    });
+  }
+
+  // Play synthesized sound (fallback)
+  private playSynthesizedSound(type: SoundType) {
     const ctx = this.ensureContext();
     const now = ctx.currentTime;
     
@@ -543,87 +845,95 @@ class SoundManager {
     osc.stop(time + 0.2);
   }
 
-  // Background music - simple looping chiptune-style
+  // Background music
   startMusic() {
     if (!this.isMusicEnabled || this.isMusicPlaying) return;
-    
-    const ctx = this.ensureContext();
+
+    // Discover music files if not already done
+    if (this.musicFiles.length === 0) {
+      this.discoverMusicFiles();
+    }
+
+    // Select a random music file
+    let musicFile: string;
+    if (this.musicFiles.length > 0) {
+      musicFile = this.musicFiles[Math.floor(Math.random() * this.musicFiles.length)];
+    } else {
+      // Fallback to default if no files found
+      musicFile = 'Quirky-Puzzle-Game-Menu.ogg';
+    }
+
+    // Create or update the audio element
+    if (this.musicElement) {
+      this.musicElement.pause();
+      this.musicElement = null;
+    }
+
+    this.musicElement = new Audio(`/music/${musicFile}`);
+    this.musicElement.loop = true;
+    this.musicElement.volume = 0.5;
+
     this.isMusicPlaying = true;
-    
-    this.playMusicLoop(ctx);
+
+    this.musicElement.currentTime = 0;
+    this.musicElement.play().catch(() => {
+      // Ignore play errors (e.g. autoplay restrictions)
+    });
   }
 
-  private playMusicLoop(ctx: AudioContext) {
-    if (!this.isMusicPlaying || !this.isMusicEnabled) return;
-    
-    // Simple bass pattern
-    const bassNotes = [130.81, 146.83, 164.81, 146.83]; // C3, D3, E3, D3
-    const melodyNotes = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33]; // C5, D5, E5, G5, E5, D5
-    
-    const now = ctx.currentTime;
-    const beatLength = 0.25;
-    
-    // Play a musical phrase
-    bassNotes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+  /**
+   * Fade out music over the specified duration (in seconds)
+   */
+  fadeOutMusic(duration: number = 2.0) {
+    if (!this.musicElement || !this.isMusicPlaying) {
+      this.stopMusic();
+      return;
+    }
+
+    // Clear any existing fade timeout
+    if (this.musicFadeTimeout !== null) {
+      clearTimeout(this.musicFadeTimeout);
+    }
+
+    const startVolume = this.musicElement.volume;
+    const fadeSteps = 20;
+    const stepDuration = (duration * 1000) / fadeSteps;
+    let currentStep = 0;
+
+    const fadeInterval = setInterval(() => {
+      currentStep++;
+      const newVolume = startVolume * (1 - currentStep / fadeSteps);
       
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      
-      const noteTime = now + i * beatLength * 2;
-      gain.gain.setValueAtTime(0.08, noteTime);
-      gain.gain.exponentialRampToValueAtTime(0.02, noteTime + beatLength * 1.5);
-      
-      osc.connect(gain);
-      gain.connect(this.musicGain!);
-      
-      osc.start(noteTime);
-      osc.stop(noteTime + beatLength * 2);
-      
-      this.musicOscillators.push(osc);
-    });
-    
-    // Melody
-    melodyNotes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      
-      const noteTime = now + i * beatLength + 0.05;
-      gain.gain.setValueAtTime(0.05, noteTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, noteTime + beatLength * 0.8);
-      
-      osc.connect(gain);
-      gain.connect(this.musicGain!);
-      
-      osc.start(noteTime);
-      osc.stop(noteTime + beatLength);
-      
-      this.musicOscillators.push(osc);
-    });
-    
-    // Schedule next loop
-    const loopLength = bassNotes.length * beatLength * 2;
-    setTimeout(() => {
-      if (this.isMusicPlaying && this.isMusicEnabled) {
-        this.playMusicLoop(ctx);
+      if (this.musicElement) {
+        this.musicElement.volume = Math.max(0, newVolume);
       }
-    }, loopLength * 1000);
+
+      if (currentStep >= fadeSteps) {
+        clearInterval(fadeInterval);
+        this.stopMusic();
+      }
+    }, stepDuration);
+
+    // Store timeout ID for cleanup
+    this.musicFadeTimeout = window.setTimeout(() => {
+      clearInterval(fadeInterval);
+    }, duration * 1000);
   }
 
   stopMusic() {
     this.isMusicPlaying = false;
-    this.musicOscillators.forEach(osc => {
-      try {
-        osc.stop();
-      } catch (e) {
-        // Already stopped
-      }
-    });
-    this.musicOscillators = [];
+
+    // Clear any fade timeout
+    if (this.musicFadeTimeout !== null) {
+      clearTimeout(this.musicFadeTimeout);
+      this.musicFadeTimeout = null;
+    }
+
+    if (this.musicElement) {
+      this.musicElement.pause();
+      this.musicElement.currentTime = 0;
+      this.musicElement.volume = 0.3; // Reset volume for next play
+    }
   }
 
   // Resume audio context (needed after user interaction)
@@ -637,4 +947,3 @@ class SoundManager {
 
 // Singleton instance
 export const soundManager = new SoundManager();
-

@@ -36,6 +36,11 @@ export function useSounds() {
     soundManager.stopMusic();
   }, []);
 
+  // Fade out background music
+  const fadeOutMusic = useCallback((duration: number = 2.0) => {
+    soundManager.fadeOutMusic(duration);
+  }, []);
+
   // Toggle all sound
   const setEnabled = useCallback((enabled: boolean) => {
     soundManager.setEnabled(enabled);
@@ -51,13 +56,42 @@ export function useSounds() {
     soundManager.setMasterVolume(volume);
   }, []);
 
+  // Set music volume (0-1)
+  const setMusicVolume = useCallback((volume: number) => {
+    soundManager.setMusicVolume(volume);
+  }, []);
+
+  // Set SFX volume (0-1)
+  const setSfxVolume = useCallback((volume: number) => {
+    soundManager.setSfxVolume(volume);
+  }, []);
+
+  // Get current volumes
+  const getMusicVolume = useCallback(() => {
+    return soundManager.getMusicVolume();
+  }, []);
+
+  const getSfxVolume = useCallback(() => {
+    return soundManager.getSfxVolume();
+  }, []);
+
+  const getMasterVolume = useCallback(() => {
+    return soundManager.getMasterVolume();
+  }, []);
+
   return {
     playSound,
     startMusic,
     stopMusic,
+    fadeOutMusic,
     setEnabled,
     setMusicEnabled,
     setVolume,
+    setMusicVolume,
+    setSfxVolume,
+    getMusicVolume,
+    getSfxVolume,
+    getMasterVolume,
     resumeAudio,
   };
 }

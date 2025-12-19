@@ -372,14 +372,12 @@ const LieInputScreen = ({
 };
 
 const VotingScreen = ({ 
-  question,
   lies,
   hasVoted,
   players,
   mySocketId,
   onVote 
 }: { 
-  question: string;
   lies: Lie[];
   hasVoted: boolean;
   players: Player[];
@@ -436,16 +434,6 @@ const VotingScreen = ({
         <CountdownTimer size="sm" />
       </motion.div>
 
-      {/* Question */}
-      <motion.div
-        className="card-cartoon p-4 mb-4 text-center"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <h2 className="text-lg font-fun">{question}</h2>
-      </motion.div>
-
       {/* Instruction */}
       <motion.div
         className="text-center text-[#ffe66d] font-fun text-xl mb-4 flex items-center justify-center gap-2"
@@ -465,31 +453,24 @@ const VotingScreen = ({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        {lies.map((lie, index) => {
-          const isOwnLie = lie.id === mySocketId;
-          
-          return (
+        {lies
+          .filter((lie) => lie.id !== mySocketId)
+          .map((lie, index) => (
             <motion.button
               key={lie.id}
               className={`
                 answer-cartoon text-left lowercase text-lg py-5
-                ${isOwnLie ? 'opacity-40 cursor-not-allowed' : ''}
               `}
-              onClick={() => !isOwnLie && onVote(lie.id)}
-              disabled={isOwnLie}
+              onClick={() => onVote(lie.id)}
               initial={{ opacity: 0, x: -30, rotate: -2 }}
-              animate={{ opacity: isOwnLie ? 0.4 : 1, x: 0, rotate: 0 }}
+              animate={{ opacity: 1, x: 0, rotate: 0 }}
               transition={{ delay: 0.1 * index, type: 'spring' }}
-              whileHover={!isOwnLie ? { scale: 1.02, rotate: 1 } : {}}
-              whileTap={!isOwnLie ? { scale: 0.98 } : {}}
+              whileHover={{ scale: 1.02, rotate: 1 }}
+              whileTap={{ scale: 0.98 }}
             >
               {lie.text}
-              {isOwnLie && (
-                <span className="text-sm text-black/50 ml-2 normal-case">(Your lie 🤫)</span>
-              )}
             </motion.button>
-          );
-        })}
+          ))}
       </motion.div>
     </motion.div>
   );
@@ -595,11 +576,11 @@ const MiniScoreboardWaitingScreen = ({ score, name }: { score: number; name: str
       transition={{ type: 'spring' }}
     >
       <motion.div
-        className="text-7xl mb-4"
+        className="mb-4"
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 1, repeat: Infinity }}
       >
-        📊
+        <img src="/images/score.png" alt="Scoreboard" className="w-20 h-20" />
       </motion.div>
       
       <h2 className="text-3xl font-fun text-[#38bdf8] mb-3" style={{ textShadow: '2px 2px 0 #000' }}>
@@ -895,7 +876,6 @@ export const PlayerPage = () => {
         {joined && gameState?.state === 'VOTING' && gameState.currentQuestion && (
           <VotingScreen
             key="voting"
-            question={gameState.currentQuestion.text}
             lies={gameState.lies}
             hasVoted={myState.hasVoted}
             players={gameState.players}

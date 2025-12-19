@@ -8,7 +8,8 @@ import {
   Button, 
   CountdownTimer, 
   QuestionCard, 
-  PlayerStatusBar 
+  PlayerStatusBar,
+  SettingsMenu
 } from '../components';
 
 interface Player {
@@ -24,6 +25,13 @@ interface Lie {
   text: string;
   isTruth: boolean;
   author: string;
+}
+
+interface HostPersona {
+  id: string;
+  name: string;
+  description: string;
+  avatarKey: string;
 }
 
 interface GameState {
@@ -44,6 +52,8 @@ interface GameState {
   currentRevealId: string | null;
   revealedIds: string[];
   autoProgress: boolean;
+  hostPersona?: HostPersona | null;
+  hostPersonas?: HostPersona[];
 }
 
 // Timer Progress Bar - shows countdown as shrinking bar
@@ -336,11 +346,11 @@ const MiniScoreboardScreen = ({
         animate={{ y: 0, opacity: 1 }}
       >
         <motion.div
-          className="text-6xl mb-4"
+          className="mb-4"
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ duration: 1, repeat: Infinity }}
         >
-          📊
+          <img src="/images/score.png" alt="Scoreboard" className="w-20 h-20" />
         </motion.div>
         <h2 
           className="text-5xl font-fun"
@@ -410,11 +420,15 @@ const MiniScoreboardScreen = ({
 const LobbyScreen = ({ 
   roomCode, 
   players, 
-  onStart 
+  hostPersona,
+  onStart,
+  onChangeHost
 }: { 
   roomCode: string; 
   players: Player[]; 
+  hostPersona?: HostPersona | null;
   onStart: () => void;
+  onChangeHost: () => void;
 }) => (
   <motion.div 
     className="flex flex-col items-center justify-center h-screen p-8"
@@ -424,11 +438,15 @@ const LobbyScreen = ({
   >
     {/* Header decoration */}
     <motion.div 
-      className="text-5xl mb-6"
+      className="mb-6"
       animate={{ y: [0, -10, 0], rotate: [-5, 5, -5] }}
       transition={{ duration: 2, repeat: Infinity }}
     >
-      🎉 Join the Game! 🎉
+      <img 
+        src="/images/biffage-logo2.png" 
+        alt="Biffage" 
+        className="max-w-md w-full h-auto"
+      />
     </motion.div>
 
     {/* Room Code Display */}
@@ -449,7 +467,7 @@ const LobbyScreen = ({
       <motion.div 
         className="font-fun font-bold tracking-[0.3em]"
         style={{
-          fontSize: 'clamp(4rem, 15vw, 12rem)',
+          fontSize: 'clamp(3rem, 12vw, 10rem)',
           color: '#ffe66d',
           textShadow: '6px 6px 0 #ff6b35, 12px 12px 0 #ff6eb4, 18px 18px 0 rgba(0,0,0,0.3)',
         }}
@@ -508,6 +526,49 @@ const LobbyScreen = ({
           </div>
         </div>
       )}
+    </motion.div>
+
+    {/* Host persona panel */}
+    <motion.div
+      className="card-cartoon p-6 mb-8 w-full max-w-2xl flex items-center justify-between gap-6"
+      initial={{ opacity: 0, y: 20, rotate: 1 }}
+      animate={{ opacity: 1, y: 0, rotate: 0 }}
+      transition={{ delay: 0.5, type: 'spring' }}
+    >
+      <div className="flex items-center gap-4">
+        <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-black bg-white flex items-center justify-center">
+          {hostPersona ? (
+            <img
+              src={`/images/personas/${hostPersona.avatarKey}.png`}
+              alt={hostPersona.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-3xl">🎙️</span>
+          )}
+        </div>
+        <div className="text-left">
+          <div className="text-sm font-fun text-white/60 uppercase tracking-wider">
+            Your Host
+          </div>
+          <div className="text-2xl font-fun text-[#ffe66d]">
+            {hostPersona ? hostPersona.name : 'Mystery MC'}
+          </div>
+          {hostPersona && (
+            <div className="text-sm font-fun text-white/70 mt-1 max-w-md">
+              {hostPersona.description}
+            </div>
+          )}
+        </div>
+      </div>
+      <motion.button
+        className="btn-cartoon btn-pink text-lg px-6 py-3 whitespace-nowrap"
+        onClick={onChangeHost}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        🎭 Change Host
+      </motion.button>
     </motion.div>
 
     {/* Start Button */}
@@ -924,11 +985,23 @@ export const HostPage = () => {
   const [sfxEnabled, setSfxEnabled] = useState(true);
   const [autoProgress, setAutoProgress] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [familyMode, setFamilyMode] = useState(true);
+  const [musicVolume, setMusicVolumeState] = useState(0.3);
+  const [sfxVolume, setSfxVolumeState] = useState(0.8);
+  const [currentEmoji, setCurrentEmoji] = useState<{ emoji: string; context?: string } | null>(null);
   const prevStateRef = useRef<string | null>(null);
   const prevPlayersRef = useRef<number>(0);
   const prevRevealIndexRef = useRef<number>(-1);
   
-  const { playSound, startMusic, stopMusic, setEnabled, setMusicEnabled: setSoundMusicEnabled, resumeAudio } = useSounds();
+  const { playSound, startMusic, stopMusic, fadeOutMusic, setEnabled, setMusicEnabled: setSoundMusicEnabled, setMusicVolume, setSfxVolume, getMusicVolume, getSfxVolume, resumeAudio } = useSounds();
+
+  // Initialize volumes from sound manager
+  useEffect(() => {
+    setMusicVolumeState(getMusicVolume());
+    setSfxVolumeState(getSfxVolume());
+  }, [getMusicVolume, getSfxVolume]);
 
   // Handle game state sound effects
   useEffect(() => {
@@ -939,6 +1012,11 @@ export const HostPage = () => {
     
     // State transition sounds
     if (prevState !== currentState) {
+      // Fade out music when leaving lobby
+      if (prevState === 'LOBBY' && currentState !== 'LOBBY') {
+        fadeOutMusic(2.0); // 2 second fade out
+      }
+      
       switch (currentState) {
         case 'ROUND_INTRO':
           playSound('whoosh');
@@ -1015,11 +1093,20 @@ export const HostPage = () => {
       setIsAudioPlaying(false);
     });
 
+    socket.on('show_emoji', ({ emoji, context }: { emoji: string; context?: string }) => {
+      setCurrentEmoji({ emoji, context });
+      // Auto-hide after a few seconds
+      setTimeout(() => {
+        setCurrentEmoji((prev) => (prev && prev.emoji === emoji ? null : prev));
+      }, 4000);
+    });
+
     return () => {
       socket.off('room_created');
       socket.off('game_state');
       socket.off('audio_chunk');
       socket.off('audio_complete');
+      socket.off('show_emoji');
     };
   }, [socket]);
   
@@ -1060,19 +1147,77 @@ export const HostPage = () => {
     socket?.emit('set_auto_progress', { roomCode, enabled: newState });
   };
 
+  const handleMusicVolumeChange = (volume: number) => {
+    setMusicVolumeState(volume);
+    setMusicVolume(volume);
+  };
+
+  const handleSfxVolumeChange = (volume: number) => {
+    setSfxVolumeState(volume);
+    setSfxVolume(volume);
+  };
+
+  const handleFamilyModeChange = (enabled: boolean) => {
+    const previousMode = familyMode;
+    setFamilyMode(enabled);
+    if (previousMode !== enabled && roomCode) {
+      socket?.emit('set_family_mode', { roomCode, enabled });
+    }
+  };
+
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     playSound('click');
     socket?.emit('request_next', { roomCode });
   };
 
+  const handleRequestChangePersona = (personaId: string) => {
+    if (!roomCode) return;
+    playSound('click');
+    socket?.emit('request_change_persona', { roomCode, personaId });
+  };
+
+  // Debug: log available personas when modal opens
+  useEffect(() => {
+    if (showPersonaModal) {
+      const availablePersonas = gameState?.hostPersonas || [];
+      console.log('Persona modal opened. Available personas:', availablePersonas.length, availablePersonas);
+      console.log('Game state:', gameState);
+    }
+  }, [showPersonaModal, gameState]);
+
   if (!roomCode) {
     return <LoadingScreen />;
   }
 
+  const availablePersonas = gameState?.hostPersonas || [];
+
   return (
     <div onClick={enableAudio} className="h-screen cursor-pointer relative overflow-hidden">
       <Background />
+
+      {/* Emoji thought bubble overlay */}
+      <AnimatePresence>
+        {currentEmoji && (
+          <motion.div
+            className="fixed top-24 right-10 z-40"
+            initial={{ opacity: 0, scale: 0.8, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -10 }}
+          >
+            <div className="relative">
+              <img
+                src="/images/thought.png"
+                alt="Thought bubble"
+                className="w-32 h-32 object-contain"
+              />
+              <div className="absolute inset-0 flex items-center justify-center text-4xl">
+                {currentEmoji.emoji}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Room Code - Always visible in top-left */}
       <motion.div
@@ -1113,39 +1258,17 @@ export const HostPage = () => {
         </AnimatePresence>
         
         {audioEnabled && (
-          <motion.div 
-            className="flex gap-2"
+          <motion.button
+            className="card-cartoon px-4 py-2 text-xl cursor-pointer"
+            onClick={() => setShowSettingsMenu(true)}
+            whileHover={{ scale: 1.1, rotate: 15 }}
+            whileTap={{ scale: 0.95 }}
+            title="Settings"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <motion.button
-              className={`card-cartoon px-4 py-2 text-xl cursor-pointer transition-all ${!musicEnabled ? 'opacity-50 grayscale' : ''}`}
-              onClick={toggleMusic}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              title={musicEnabled ? 'Mute Music' : 'Unmute Music'}
-            >
-              {musicEnabled ? '🎵' : '🔇'}
-            </motion.button>
-            <motion.button
-              className={`card-cartoon px-4 py-2 text-xl cursor-pointer transition-all ${!sfxEnabled ? 'opacity-50 grayscale' : ''}`}
-              onClick={toggleSfx}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              title={sfxEnabled ? 'Mute SFX' : 'Unmute SFX'}
-            >
-              {sfxEnabled ? '🔊' : '🔈'}
-            </motion.button>
-            <motion.button
-              className={`card-cartoon px-4 py-2 text-xl cursor-pointer transition-all ${autoProgress ? 'ring-2 ring-green-400' : 'opacity-50'}`}
-              onClick={toggleAutoProgress}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              title={autoProgress ? 'Auto-Progress ON' : 'Auto-Progress OFF'}
-            >
-              {autoProgress ? '▶️' : '⏸️'}
-            </motion.button>
-          </motion.div>
+            ⚙️
+          </motion.button>
         )}
       </div>
 
@@ -1154,8 +1277,10 @@ export const HostPage = () => {
           <LobbyScreen 
             key="lobby"
             roomCode={roomCode} 
-            players={gameState?.players || []} 
+            players={gameState?.players || []}
+            hostPersona={gameState?.hostPersona}
             onStart={handleNext}
+            onChangeHost={() => setShowPersonaModal(true)}
           />
         )}
 
@@ -1205,6 +1330,104 @@ export const HostPage = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Persona selection modal */}
+      <AnimatePresence>
+        {showPersonaModal && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowPersonaModal(false)}
+          >
+            <motion.div
+              className="card-cartoon p-0 max-w-4xl w-full max-h-[85vh] flex flex-col relative"
+              initial={{ scale: 0.9, opacity: 0, rotate: -2 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              exit={{ scale: 0.9, opacity: 0, rotate: 2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Fixed header */}
+              <div className="flex items-center justify-between p-6 pb-4 border-b-4 border-black flex-shrink-0">
+                <h2 className="text-3xl font-fun text-[#ffe66d]">
+                  🎭 Choose Your Host
+                </h2>
+                <button
+                  className="btn-cartoon btn-blue px-4 py-2 text-lg"
+                  onClick={() => setShowPersonaModal(false)}
+                >
+                  ✖ Close
+                </button>
+              </div>
+
+              {/* Scrollable content area */}
+              <div className="flex-1 overflow-y-auto p-6 pt-4">
+                {availablePersonas.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-4">🤷</div>
+                    <div className="text-xl font-fun text-white/70">
+                      No host personas available. Please refresh the page.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availablePersonas.map((persona) => (
+                  <motion.button
+                    key={persona.id}
+                    className={`card-cartoon flex items-center gap-4 text-left p-4 ${
+                      gameState?.hostPersona?.id === persona.id
+                        ? 'ring-4 ring-[#ffe66d]'
+                        : ''
+                    }`}
+                    whileHover={{ scale: 1.02, rotate: 1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      handleRequestChangePersona(persona.id);
+                      setShowPersonaModal(false);
+                    }}
+                  >
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-black bg-white flex items-center justify-center flex-shrink-0">
+                      <img
+                        src={`/images/personas/${persona.avatarKey}.png`}
+                        alt={persona.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xl font-fun text-white">
+                        {persona.name}
+                      </div>
+                      <div className="text-sm font-fun text-white/70 mt-1">
+                        {persona.description}
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Menu */}
+      <SettingsMenu
+        isOpen={showSettingsMenu}
+        onClose={() => setShowSettingsMenu(false)}
+        musicVolume={musicVolume}
+        sfxVolume={sfxVolume}
+        autoProgress={autoProgress}
+        familyMode={familyMode}
+        onMusicVolumeChange={handleMusicVolumeChange}
+        onSfxVolumeChange={handleSfxVolumeChange}
+        onAutoProgressChange={(enabled) => {
+          setAutoProgress(enabled);
+          socket?.emit('set_auto_progress', { roomCode, enabled });
+        }}
+        onFamilyModeChange={handleFamilyModeChange}
+      />
     </div>
   );
 };

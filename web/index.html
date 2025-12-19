@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="assets/images/buffage-logo.png">
+  <link rel="icon" type="image/png" href="assets/images/favicon.png">
   
   <!-- Styles -->
   <link rel="stylesheet" href="css/styles.css">
@@ -174,6 +174,24 @@
     <p>Made with ❤️ for game nights everywhere</p>
     <p style="margin-top: 8px;">© 2024 Biffage. All rights reserved.</p>
   </footer>
+
+  <!-- Mobile Host Warning Modal -->
+  <div id="mobile-host-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-icon">📺</div>
+      <h2 class="modal-title">TV or Monitor Required</h2>
+      <p class="modal-message">
+        To host a game, you'll need a TV or large monitor display. 
+        The host view is designed for big screens so everyone can see the questions and answers!
+      </p>
+      <p class="modal-message">
+        You can still <strong>join</strong> games from your mobile device using the "Join a Game" button.
+      </p>
+      <button class="btn-cartoon btn-modal-close" id="modal-close-btn">
+        Got it!
+      </button>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="js/main.js"></script>
