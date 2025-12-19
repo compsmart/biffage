@@ -88,16 +88,6 @@ const JoinScreen = ({
         transition={{ duration: 2, repeat: Infinity }}
       />
       
-      <motion.h1
-        className="text-4xl font-fun text-[#ff6eb4] mb-2"
-        style={{ textShadow: '3px 3px 0 #000' }}
-        initial={{ y: -30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-      >
-        Join Game!
-      </motion.h1>
-      
       <motion.p
         className="text-white/70 mb-8 font-fun text-lg"
         initial={{ opacity: 0 }}
