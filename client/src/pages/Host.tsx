@@ -179,7 +179,7 @@ const RoundIntroScreen = ({
         return {
           title: "ROUND 1",
           subtitle: "Let's Get Started!",
-          emoji: "🎮",
+          emoji: "🤥",
           points: "1000 pts for truth • 500 pts per fool",
           message: "Write a convincing lie. Find the real answer!",
           color: '#38bdf8',
@@ -346,11 +346,11 @@ const MiniScoreboardScreen = ({
         animate={{ y: 0, opacity: 1 }}
       >
         <motion.div
-          className="mb-4"
+          className="mb-4 flex justify-center items-center"
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ duration: 1, repeat: Infinity }}
         >
-          <img src="/images/score.png" alt="Scoreboard" className="w-20 h-20" />
+          <img src="/images/score.png" alt="Scoreboard" className="w-50 h-50" />
         </motion.div>
         <h2 
           className="text-5xl font-fun"
@@ -418,73 +418,44 @@ const MiniScoreboardScreen = ({
 };
 
 const LobbyScreen = ({ 
-  roomCode, 
   players, 
   hostPersona,
   onStart,
   onChangeHost
 }: { 
-  roomCode: string; 
   players: Player[]; 
   hostPersona?: HostPersona | null;
   onStart: () => void;
   onChangeHost: () => void;
 }) => (
   <motion.div 
-    className="flex flex-col items-center justify-center h-screen p-8"
+    className="flex flex-col items-center justify-center h-screen p-8 gap-10"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0, scale: 0.9 }}
   >
     {/* Header decoration */}
     <motion.div 
-      className="mb-6"
-      animate={{ y: [0, -10, 0], rotate: [-5, 5, -5] }}
-      transition={{ duration: 2, repeat: Infinity }}
-    >
-      <img 
-        src="/images/biffage-logo2.png" 
-        alt="Biffage" 
-        className="max-w-md w-full h-auto"
-      />
-    </motion.div>
-
-    {/* Room Code Display */}
-    <motion.div 
-      className="text-center mb-16"
-      initial={{ y: -50, opacity: 0 }}
+      className="mb-8"
+      initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.2, type: 'spring' }}
+      transition={{ duration: 0.5, type: 'spring' }}
     >
-      <motion.div 
-        className="text-2xl font-fun text-white/70 mb-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        Enter this code to play! 👇
-      </motion.div>
-      <motion.div 
-        className="font-fun font-bold tracking-[0.3em]"
-        style={{
-          fontSize: 'clamp(3rem, 12vw, 10rem)',
-          color: '#ffe66d',
-          textShadow: '6px 6px 0 #ff6b35, 12px 12px 0 #ff6eb4, 18px 18px 0 rgba(0,0,0,0.3)',
-        }}
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-      >
-        {roomCode}
-      </motion.div>
+      <motion.img 
+        src="/images/biffage-white-inline.png" 
+        alt="Biffage" 
+        className="max-w-md w-full h-auto logo-glow"
+        animate={{ y: [0, -10, 0], rotate: [-3, 3, -3] }}
+        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+      />
     </motion.div>
 
     {/* Waiting for players */}
     <motion.div 
-      className="card-cartoon p-10 mb-10 text-center w-full max-w-4xl"
-      initial={{ y: 50, opacity: 0, rotate: -2 }}
+      className="card-cartoon p-10 mb-8 text-center w-full max-w-4xl"
+      initial={{ y: 30, opacity: 0, rotate: -2 }}
       animate={{ y: 0, opacity: 1, rotate: 0 }}
-      transition={{ delay: 0.4, type: 'spring' }}
+      transition={{ delay: 0.2, type: 'spring' }}
     >
       {players.length === 0 ? (
         <motion.div className="space-y-6">
@@ -533,7 +504,7 @@ const LobbyScreen = ({
       className="card-cartoon p-6 mb-8 w-full max-w-2xl flex items-center justify-between gap-6"
       initial={{ opacity: 0, y: 20, rotate: 1 }}
       animate={{ opacity: 1, y: 0, rotate: 0 }}
-      transition={{ delay: 0.5, type: 'spring' }}
+      transition={{ delay: 0.3, type: 'spring' }}
     >
       <div className="flex items-center gap-4">
         <div className="relative w-20 h-20 rounded-full overflow-hidden border-4 border-black bg-white flex items-center justify-center">
@@ -578,7 +549,7 @@ const LobbyScreen = ({
           initial={{ opacity: 0, y: 20, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20 }}
-          transition={{ delay: 0.5, type: 'spring' }}
+          transition={{ delay: 0.4, type: 'spring' }}
           className="starburst"
         >
           <button 
@@ -974,6 +945,106 @@ const ScoreboardScreen = ({
   );
 };
 
+// Welcome Modal - shown on first load to explain game and enable audio
+const WelcomeModal = ({ 
+  roomCode, 
+  onContinue 
+}: { 
+  roomCode: string; 
+  onContinue: () => void;
+}) => (
+  <motion.div
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+  >
+    <motion.div
+      className="card-cartoon p-10 max-w-2xl w-full mx-4 text-center relative overflow-hidden"
+      initial={{ scale: 0.8, opacity: 0, y: 50 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.8, opacity: 0, y: 50 }}
+      transition={{ type: 'spring', damping: 20 }}
+    >
+  
+      {/* Logo */}
+      <motion.img 
+        src="/images/biffage-logo2.png" 
+        alt="Biffage" 
+        className="max-w-xs w-full h-auto mx-auto mb-10 logo-glow"
+        animate={{ rotate: [-2, 2, -2] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      
+      {/* Title */}
+      <h2 
+        className="text-3xl font-fun font-bold mb-6"
+        style={{ color: '#ffe66d', textShadow: '3px 3px 0 #000' }}
+      >
+        Welcome to the Party! 🥳
+      </h2>
+      
+      {/* How to play */}
+      <div className="space-y-4 mb-8">
+        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
+          <span className="text-3xl">🤔</span>
+          <p className="font-fun text-white text-lg">Read the question and write a <span className="text-[#ff6eb4] font-bold">convincing lie</span></p>
+        </div>
+        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
+          <span className="text-3xl">🎯</span>
+          <p className="font-fun text-white text-lg">Vote for what you think is the <span className="text-[#4ade80] font-bold">real answer</span></p>
+        </div>
+        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
+          <span className="text-3xl">😈</span>
+          <p className="font-fun text-white text-lg">Fool others with your lie to earn <span className="text-[#ffe66d] font-bold">bonus points</span>!</p>
+        </div>
+      </div>
+      
+      {/* Join instructions */}
+      <div 
+        className="bg-gradient-to-r from-[#ff6b35]/20 to-[#ff6eb4]/20 rounded-2xl p-6 mb-8 border-4 border-white/20"
+      >
+        <p className="font-fun text-white/80 text-lg mb-3">
+          📱 Join on your phone or tablet at:
+        </p>
+        <p 
+          className="font-fun text-2xl font-bold mb-4"
+          style={{ color: '#38bdf8' }}
+        >
+          app.biffage.com
+        </p>
+        <p className="font-fun text-white/60 text-sm mb-2">Enter this room code:</p>
+        <motion.div 
+          className="font-fun font-bold tracking-[0.3em]"
+          style={{
+            fontSize: 'clamp(2.5rem, 10vw, 4rem)',
+            color: '#ffe66d',
+            textShadow: '4px 4px 0 #ff6b35, 8px 8px 0 rgba(0,0,0,0.3)',
+          }}
+          animate={{ scale: [1, 1.02, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          {roomCode}
+        </motion.div>
+      </div>
+      
+      {/* Continue button */}
+      <motion.button
+        className="btn-cartoon btn-green text-2xl py-5 px-12"
+        onClick={onContinue}
+        whileHover={{ scale: 1.05, rotate: 2 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        🚀 Let's Play! 🚀
+      </motion.button>
+      
+      <p className="mt-4 text-white/50 font-fun text-sm">
+        🔊 This will also enable sound
+      </p>
+    </motion.div>
+  </motion.div>
+);
+
 export const HostPage = () => {
   const socket = useSocket();
   const [roomCode, setRoomCode] = useState<string | null>(null);
@@ -987,6 +1058,7 @@ export const HostPage = () => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [familyMode, setFamilyMode] = useState(true);
   const [musicVolume, setMusicVolumeState] = useState(0.3);
   const [sfxVolume, setSfxVolumeState] = useState(0.8);
@@ -1064,50 +1136,66 @@ export const HostPage = () => {
     prevRevealIndexRef.current = gameState.revealedIds.length;
   }, [gameState, playSound]);
 
+  // Set up socket event listeners
   useEffect(() => {
-    if (!socket || hasJoined.current) return;
+    if (!socket) return;
 
-    socket.emit('join_host');
-    hasJoined.current = true;
-    
-    audioStreamerRef.current = new AudioStreamer();
+    // Set up audio streamer
+    if (!audioStreamerRef.current) {
+      audioStreamerRef.current = new AudioStreamer();
+    }
 
-    socket.on('room_created', ({ roomCode }) => {
-      setRoomCode(roomCode);
-    });
+    const handleRoomCreated = ({ roomCode: code }: { roomCode: string }) => {
+      console.log('[Host] Room created:', code);
+      setRoomCode(code);
+    };
 
-    socket.on('game_state', (state) => {
+    const handleGameState = (state: GameState) => {
+      console.log('[Host] Game state received:', state.state);
       setGameState(state);
-      // Mark audio as playing when we receive new state (Gemini will speak)
       setIsAudioPlaying(true);
-    });
-    
-    socket.on('audio_chunk', async (chunk: ArrayBuffer) => {
+    };
+
+    const handleAudioChunk = async (chunk: ArrayBuffer) => {
       if (audioStreamerRef.current) {
         await audioStreamerRef.current.resume(); 
         audioStreamerRef.current.addPCM16(chunk);
       }
-    });
-    
-    socket.on('audio_complete', () => {
-      setIsAudioPlaying(false);
-    });
+    };
 
-    socket.on('show_emoji', ({ emoji, context }: { emoji: string; context?: string }) => {
+    const handleAudioComplete = () => {
+      setIsAudioPlaying(false);
+    };
+
+    const handleShowEmoji = ({ emoji, context }: { emoji: string; context?: string }) => {
       setCurrentEmoji({ emoji, context });
-      // Auto-hide after a few seconds
       setTimeout(() => {
         setCurrentEmoji((prev) => (prev && prev.emoji === emoji ? null : prev));
       }, 4000);
-    });
+    };
+
+    socket.on('room_created', handleRoomCreated);
+    socket.on('game_state', handleGameState);
+    socket.on('audio_chunk', handleAudioChunk);
+    socket.on('audio_complete', handleAudioComplete);
+    socket.on('show_emoji', handleShowEmoji);
 
     return () => {
-      socket.off('room_created');
-      socket.off('game_state');
-      socket.off('audio_chunk');
-      socket.off('audio_complete');
-      socket.off('show_emoji');
+      socket.off('room_created', handleRoomCreated);
+      socket.off('game_state', handleGameState);
+      socket.off('audio_chunk', handleAudioChunk);
+      socket.off('audio_complete', handleAudioComplete);
+      socket.off('show_emoji', handleShowEmoji);
     };
+  }, [socket]);
+
+  // Join as host (separate effect to avoid re-joining on listener setup)
+  useEffect(() => {
+    if (!socket || hasJoined.current) return;
+
+    console.log('[Host] Emitting join_host');
+    socket.emit('join_host');
+    hasJoined.current = true;
   }, [socket]);
   
   const enableAudio = async () => {
@@ -1119,6 +1207,11 @@ export const HostPage = () => {
         startMusic();
       }
     }
+  };
+
+  const handleWelcomeContinue = async () => {
+    await enableAudio();
+    setShowWelcomeModal(false);
   };
   
   const toggleMusic = (e: React.MouseEvent) => {
@@ -1177,6 +1270,17 @@ export const HostPage = () => {
     socket?.emit('request_change_persona', { roomCode, personaId });
   };
 
+  const handleQuitGame = () => {
+    playSound('click');
+    setShowSettingsMenu(false);
+    // Emit quit game event to server
+    socket?.emit('quit_game', { roomCode });
+    // Reset local state to go back to lobby
+    if (gameState) {
+      // This will trigger the server to reset the game state to LOBBY
+    }
+  };
+
   // Debug: log available personas when modal opens
   useEffect(() => {
     if (showPersonaModal) {
@@ -1227,15 +1331,15 @@ export const HostPage = () => {
         transition={{ delay: 0.3, type: 'spring' }}
       >
         <div 
-          className="card-cartoon px-5 py-3 flex items-center gap-3"
+          className="card-cartoon px-6 py-4 flex flex-col items-center"
           style={{
             background: 'linear-gradient(135deg, #2a2a4a 0%, #1f1f3a 100%)',
           }}
         >
-          <span className="text-lg text-white/60 font-fun">🔑 Room:</span>
+          <span className="text-sm text-white/60 font-fun uppercase tracking-wider">Room</span>
           <span 
-            className="text-2xl font-fun font-bold tracking-widest"
-            style={{ color: '#ffe66d', textShadow: '2px 2px 0 #000' }}
+            className="text-4xl font-fun font-bold tracking-[0.2em]"
+            style={{ color: '#ffe66d', textShadow: '3px 3px 0 #000' }}
           >
             {roomCode}
           </span>
@@ -1244,19 +1348,6 @@ export const HostPage = () => {
 
       {/* Audio controls */}
       <div className="fixed top-6 right-6 z-50 flex gap-3">
-        <AnimatePresence>
-          {!audioEnabled && (
-            <motion.div 
-              className="card-cartoon px-6 py-3 text-lg font-fun"
-              initial={{ opacity: 0, x: 20, rotate: 5 }}
-              animate={{ opacity: 1, x: 0, rotate: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-            >
-              🔊 Click anywhere for sound!
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
         {audioEnabled && (
           <motion.button
             className="card-cartoon px-4 py-2 text-xl cursor-pointer"
@@ -1276,7 +1367,6 @@ export const HostPage = () => {
         {(!gameState || gameState.state === 'LOBBY') && roomCode && (
           <LobbyScreen 
             key="lobby"
-            roomCode={roomCode} 
             players={gameState?.players || []}
             hostPersona={gameState?.hostPersona}
             onStart={handleNext}
@@ -1427,7 +1517,19 @@ export const HostPage = () => {
           socket?.emit('set_auto_progress', { roomCode, enabled });
         }}
         onFamilyModeChange={handleFamilyModeChange}
+        showQuitButton={gameState?.state !== 'LOBBY' && gameState?.state !== undefined}
+        onQuitGame={handleQuitGame}
       />
+
+      {/* Welcome Modal - shown on first load */}
+      <AnimatePresence>
+        {showWelcomeModal && roomCode && (
+          <WelcomeModal 
+            roomCode={roomCode} 
+            onContinue={handleWelcomeContinue}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

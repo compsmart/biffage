@@ -10,6 +10,10 @@ const questionsData = JSON.parse(fs.readFileSync(path.join(__dirname, 'data/ques
 const PHASE_DURATION = 60; // 60 seconds per phase
 const TIMER_TICK_INTERVAL = 1000; // Broadcast every second
 
+// Heartbeat constants
+const HEARTBEAT_TIMEOUT = 30000; // 30 seconds - consider player disconnected if no heartbeat
+const HEARTBEAT_CHECK_INTERVAL = 5000; // Check every 5 seconds
+
 class Game {
   constructor(io, roomCode, hostSocketId) {
     this.io = io;
@@ -44,6 +48,75 @@ class Game {
     this.hostPersona = null;
     this.availablePersonas = hostPersonas;
     this.gemini = null;
+
+    // Heartbeat tracking for player connectivity
+    this.playerHeartbeats = new Map(); // socketId -> lastHeartbeatTime
+    this.heartbeatCheckInterval = null;
+    this.startHeartbeatCheck();
+  }
+
+  // Heartbeat management methods
+  startHeartbeatCheck() {
+    this.stopHeartbeatCheck(); // Clear any existing interval
+    
+    this.heartbeatCheckInterval = setInterval(() => {
+      this.checkInactivePlayers();
+    }, HEARTBEAT_CHECK_INTERVAL);
+    
+    console.log(`[Room ${this.roomCode}] Heartbeat check started`);
+  }
+
+  stopHeartbeatCheck() {
+    if (this.heartbeatCheckInterval) {
+      clearInterval(this.heartbeatCheckInterval);
+      this.heartbeatCheckInterval = null;
+    }
+  }
+
+  updatePlayerHeartbeat(socketId) {
+    if (this.players.has(socketId)) {
+      this.playerHeartbeats.set(socketId, Date.now());
+    }
+  }
+
+  checkInactivePlayers() {
+    const now = Date.now();
+    const inactivePlayers = [];
+    
+    for (const [socketId, player] of this.players) {
+      const lastHeartbeat = this.playerHeartbeats.get(socketId);
+      
+      // If no heartbeat recorded or heartbeat is older than timeout
+      if (!lastHeartbeat || (now - lastHeartbeat) > HEARTBEAT_TIMEOUT) {
+        console.log(`[Room ${this.roomCode}] Player ${player.name} (${socketId}) inactive for 30+ seconds`);
+        inactivePlayers.push(socketId);
+      }
+    }
+    
+    // Remove inactive players
+    for (const socketId of inactivePlayers) {
+      const player = this.players.get(socketId);
+      console.log(`[Room ${this.roomCode}] Removing inactive player: ${player?.name || socketId}`);
+      this.removePlayer(socketId);
+      this.playerHeartbeats.delete(socketId);
+    }
+  }
+
+  // Cleanup method to be called when game/room is destroyed
+  cleanup() {
+    this.stopTimer();
+    this.stopHeartbeatCheck();
+    this.playerHeartbeats.clear();
+    
+    if (this.gemini && this.gemini.ws) {
+      try {
+        this.gemini.ws.close();
+      } catch (e) {
+        console.error('Error closing Gemini websocket during cleanup:', e);
+      }
+    }
+    
+    console.log(`[Room ${this.roomCode}] Game cleanup complete`);
   }
   
   initializeGemini(persona, familyMode = null) {
@@ -137,20 +210,35 @@ class Game {
     if (existingId) {
         const p = this.players.get(existingId);
         this.players.delete(existingId);
+        this.playerHeartbeats.delete(existingId); // Clean up old heartbeat
         this.players.set(socketId, p);
         console.log(`Player ${name} reconnected`);
     } else {
         this.players.set(socketId, { name, score: 0, currentLie: '', currentVote: null });
     }
 
+    // Record initial heartbeat for new player
+    this.playerHeartbeats.set(socketId, Date.now());
+
     this.broadcastState();
   }
 
   removePlayer(socketId) {
-    if (this.state === 'LOBBY') {
-        this.players.delete(socketId);
-        this.broadcastState();
+    if (!this.players.has(socketId)) return;
+    
+    this.players.delete(socketId);
+    this.playerHeartbeats.delete(socketId); // Clean up heartbeat tracking
+    console.log(`[Room ${this.roomCode}] Player removed. Remaining players: ${this.players.size}`);
+    
+    // If we're in a phase where we're waiting for player input, 
+    // check if all remaining players have completed their action
+    if (this.state === 'LIE_INPUT') {
+      this.checkAllLiesSubmitted();
+    } else if (this.state === 'VOTING') {
+      this.checkAllVotes();
     }
+    
+    this.broadcastState();
   }
   
   // Round detection helpers
@@ -257,7 +345,7 @@ class Game {
         
         let prompt = "";
         if (context.state === 'LOBBY') {
-            prompt = `A new player joined! We have ${context.playerCount} players. The leader is ${context.leader || "nobody yet"}. Encourage them to start.`;
+            prompt = `A new player joined! We have ${context.playerCount} players. Encourage them to start.`;
         } else if (context.state === 'ROUND_INTRO') {
             // Round introduction prompts
             if (context.roundNumber === 1) {
@@ -588,6 +676,36 @@ class Game {
           this.state = 'LOBBY';
           this.broadcastState();
       }
+  }
+
+  // Reset game to lobby state (called when host quits game)
+  resetToLobby() {
+      console.log(`[Room ${this.roomCode}] Resetting game to lobby`);
+      
+      // Stop any active timer
+      this.stopTimer();
+      
+      // Reset game state
+      this.currentQuestionIndex = 0;
+      this.currentLies = [];
+      this.revealOrder = [];
+      this.revealIndex = 0;
+      
+      // Get a fresh set of questions
+      this.gameData = questionsData[Math.floor(Math.random() * questionsData.length)];
+      
+      // Reset player scores and state
+      this.players.forEach(p => {
+          p.score = 0;
+          p.currentLie = '';
+          p.currentVote = null;
+      });
+      
+      // Set state to lobby
+      this.state = 'LOBBY';
+      
+      // Broadcast the reset state to all clients
+      this.broadcastState();
   }
 }
 

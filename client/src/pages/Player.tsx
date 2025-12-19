@@ -79,14 +79,14 @@ const JoinScreen = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      {/* Fun header */}
-      <motion.div
-        className="text-5xl mb-4"
-        animate={{ rotate: [-5, 5, -5], y: [0, -5, 0] }}
+      {/* Logo */}
+      <motion.img
+        src="/images/biffage-white.png"
+        alt="Biffage"
+        className="w-48 h-auto mb-4 logo-glow-sm"
+        animate={{ rotate: [-2, 2, -2], y: [0, -5, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
-      >
-        🎮
-      </motion.div>
+      />
       
       <motion.h1
         className="text-4xl font-fun text-[#ff6eb4] mb-2"
@@ -343,20 +343,18 @@ const LieInputScreen = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-col">
           <label className="text-lg font-fun text-white mb-2 flex items-center gap-2">
             <span>🤥</span> Write a convincing lie!
           </label>
-          <textarea
-            className="input-cartoon flex-1 min-h-[120px] resize-none text-lg"
+          <input
+            type="text"
+            className="input-cartoon text-lg py-3"
             placeholder="Type your lie here..."
             value={lieText}
             onChange={(e) => setLieText(e.target.value)}
-            maxLength={150}
+            maxLength={100}
           />
-          <div className="text-right text-sm text-white/50 mt-2 font-fun">
-            {lieText.length}/150
-          </div>
         </div>
 
         <button 
@@ -516,7 +514,7 @@ const RoundIntroWaitingScreen = ({ roundNumber, isFinal }: { roundNumber: number
       return { emoji: '🏆', title: 'Final Fibbage!', color: '#ffe66d' };
     }
     switch (roundNumber) {
-      case 1: return { emoji: '🎮', title: 'Round 1!', color: '#38bdf8' };
+      case 1: return { emoji: '🤥', title: 'Round 1!', color: '#38bdf8' };
       case 2: return { emoji: '⚡', title: 'Round 2 - Double Points!', color: '#a855f7' };
       case 3: return { emoji: '🔥', title: 'Round 3 - Triple Points!', color: '#ff6b35' };
       default: return { emoji: '🎯', title: `Round ${roundNumber}`, color: '#ffe66d' };
@@ -608,6 +606,7 @@ export const PlayerPage = () => {
   const [reconnectError, setReconnectError] = useState<string | null>(null);
   const [storedRoomCode, setStoredRoomCode] = useState<string | null>(null);
   const [storedName, setStoredName] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
   const prevStateRef = useRef<string | null>(null);
   const reconnectAttempted = useRef(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -777,6 +776,27 @@ export const PlayerPage = () => {
     socket.emit('submit_vote', { roomCode, choiceId });
   };
 
+  const handleLeaveGame = () => {
+    playSound('click');
+    
+    // Notify server that player is leaving
+    if (socket && roomCode) {
+      socket.emit('leave_game', { roomCode });
+    }
+    
+    // Clear local storage
+    localStorage.removeItem(STORAGE_KEY_ROOM);
+    localStorage.removeItem(STORAGE_KEY_NAME);
+    // Reset state
+    setStoredRoomCode(null);
+    setStoredName(null);
+    setJoined(false);
+    setGameState(null);
+    setRoomCode('');
+    setShowMenu(false);
+    reconnectAttempted.current = false;
+  };
+
   // Find self in player list
   const myState = gameState?.players.find(p => p.id === socket?.id) || { score: 0, hasLied: false, hasVoted: false };
 
@@ -798,7 +818,60 @@ export const PlayerPage = () => {
           transition={{ delay: 0.5, type: 'spring' }}
         >
           <span className="font-fun text-[#38bdf8] text-lg">😎 {name}</span>
-          <span className="score-cartoon text-sm">⭐ {myState.score}</span>
+          <div className="flex items-center gap-3">
+            <span className="score-cartoon text-sm">⭐ {myState.score}</span>
+            <div className="relative">
+              <button
+                onClick={() => {
+                  playSound('click');
+                  setShowMenu(!showMenu);
+                }}
+                className="w-10 h-10 rounded-full bg-white/10 border-2 border-white/30 flex items-center justify-center hover:bg-white/20 transition-colors"
+              >
+                <span className="text-xl">☰</span>
+              </button>
+              
+              <AnimatePresence>
+                {showMenu && (
+                  <>
+                    {/* Backdrop */}
+                    <motion.div
+                      className="fixed inset-0 z-40"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowMenu(false)}
+                    />
+                    
+                    {/* Menu dropdown */}
+                    <motion.div
+                      className="absolute right-0 top-12 z-50 min-w-[180px]"
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <div 
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          background: 'linear-gradient(135deg, #2a2a4a 0%, #1f1f3a 100%)',
+                          border: '3px solid #000',
+                          boxShadow: '4px 4px 0 0 #000'
+                        }}
+                      >
+                        <button
+                          onClick={handleLeaveGame}
+                          className="w-full px-4 py-3 text-left font-fun text-[#ef4444] hover:bg-white/10 transition-colors flex items-center gap-2"
+                        >
+                          <span>🚪</span> Leave Game
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </motion.div>
       )}
 

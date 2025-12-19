@@ -534,27 +534,30 @@ h1, h2, h3, h4, h5, h6 {
   padding: 16px 24px;
   color: #000;
   box-shadow: 4px 4px 0 0 #000;
+  margin-bottom: 16px; /* Space for the arrow */
 }
 
 .speech-bubble::after {
   content: '';
   position: absolute;
-  bottom: -20px;
-  left: 30px;
+  bottom: -27px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border: 12px solid transparent;
+  border: 10px solid transparent;
   border-top-color: #000;
 }
 
 .speech-bubble::before {
   content: '';
   position: absolute;
-  bottom: -12px;
-  left: 32px;
+  bottom: -13px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 0;
   height: 0;
-  border: 10px solid transparent;
+  border: 7px solid transparent;
   border-top-color: white;
   z-index: 1;
 }
@@ -614,6 +617,28 @@ h1, h2, h3, h4, h5, h6 {
             drop-shadow(0 0 50px rgba(255, 107, 53, 0.7))
             drop-shadow(0 0 70px rgba(255, 110, 180, 0.6))
             drop-shadow(0 0 100px rgba(168, 85, 247, 0.5));
+  }
+}
+
+/* Smaller glow for mobile/player screens */
+.logo-glow-sm {
+  position: relative;
+  filter: drop-shadow(0 0 10px rgba(255, 230, 109, 0.5))
+          drop-shadow(0 0 20px rgba(255, 107, 53, 0.4))
+          drop-shadow(0 0 30px rgba(255, 110, 180, 0.3));
+  animation: logoGlowSm 3s ease-in-out infinite;
+}
+
+@keyframes logoGlowSm {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(255, 230, 109, 0.5))
+            drop-shadow(0 0 20px rgba(255, 107, 53, 0.4))
+            drop-shadow(0 0 30px rgba(255, 110, 180, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(255, 230, 109, 0.7))
+            drop-shadow(0 0 25px rgba(255, 107, 53, 0.6))
+            drop-shadow(0 0 35px rgba(255, 110, 180, 0.5));
   }
 }
 

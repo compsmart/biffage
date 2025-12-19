@@ -12,6 +12,8 @@ interface SettingsMenuProps {
   onSfxVolumeChange: (volume: number) => void;
   onAutoProgressChange: (enabled: boolean) => void;
   onFamilyModeChange: (enabled: boolean) => void;
+  showQuitButton?: boolean;
+  onQuitGame?: () => void;
 }
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({
@@ -25,6 +27,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onSfxVolumeChange,
   onAutoProgressChange,
   onFamilyModeChange,
+  showQuitButton = false,
+  onQuitGame,
 }) => {
   return (
     <AnimatePresence>
@@ -198,6 +202,33 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
                     />
                   </motion.button>
                 </motion.div>
+
+                {/* Quit Game Button - only shown during active game */}
+                {showQuitButton && onQuitGame && (
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="pt-4 border-t-2 border-white/20"
+                  >
+                    <motion.button
+                      className="w-full btn-cartoon text-xl py-4"
+                      style={{
+                        background: '#ef4444',
+                        color: 'white',
+                        boxShadow: '4px 4px 0 0 #991b1b',
+                      }}
+                      onClick={onQuitGame}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      🚪 Quit Game
+                    </motion.button>
+                    <p className="text-center text-white/50 text-sm font-fun mt-2">
+                      End the game and return to lobby
+                    </p>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </motion.div>

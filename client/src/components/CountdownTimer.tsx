@@ -13,7 +13,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const socket = useSocket();
   const [remaining, setRemaining] = useState(30);
   const [total, setTotal] = useState(30);
-  const prevRemainingRef = useRef(30);
+  const prevRemainingRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -32,11 +32,21 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   
   // Play countdown sounds
   useEffect(() => {
+    // Skip the first update after mount (initial sync)
+    if (prevRemainingRef.current === null) {
+      prevRemainingRef.current = remaining;
+      return;
+    }
+    
     if (remaining !== prevRemainingRef.current && remaining > 0 && remaining < prevRemainingRef.current) {
-      if (remaining <= 3) {
-        soundManager.play('countdownFinal');
-      } else if (remaining <= 10) {
-        soundManager.play('countdown');
+      // Only play if it's a single-second decrement (not a big jump from initial sync)
+      if (prevRemainingRef.current - remaining <= 2) {
+        if (remaining === 1) {
+          // Play final countdown sound only on the last second
+          soundManager.play('countdownFinal');
+        } else if (remaining <= 10) {
+          soundManager.play('countdown');
+        }
       }
     }
     prevRemainingRef.current = remaining;

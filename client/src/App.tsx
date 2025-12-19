@@ -48,18 +48,13 @@ const Landing = () => (
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, type: 'spring' }}
       >
-        <motion.h1 
-          className="font-fun font-black mb-6 logo-glow"
-          style={{
-            fontSize: 'clamp(4rem, 15vw, 10rem)',
-            color: '#ffe66d',
-            textShadow: '6px 6px 0 #ff6b35, 12px 12px 0 #ff6eb4, 18px 18px 0 rgba(0,0,0,0.4)',
-          }}
+        <motion.img 
+          src="/images/biffage-white.png"
+          alt="Biffage"
+          className="max-w-md w-full h-auto mx-auto mb-6 logo-glow"
           animate={{ rotate: [-1, 1, -1] }}
           transition={{ duration: 2, repeat: Infinity }}
-        >
-          FIBBAGE
-        </motion.h1>
+        />
         
         <motion.p 
           className="text-2xl text-white font-fun"

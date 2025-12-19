@@ -125,6 +125,41 @@ class RoomManager {
     game.setFamilyMode(enabled);
   }
 
+  handleQuitGame(socket, roomCode) {
+    const game = this.rooms.get(roomCode);
+    if (!game || game.hostSocketId !== socket.id) return;
+
+    console.log(`[Room ${roomCode}] Host quit game, resetting to lobby`);
+    game.resetToLobby();
+  }
+
+  handlePlayerLeave(socket, roomCode) {
+    const game = this.rooms.get(roomCode);
+    if (!game) return;
+
+    // Don't allow host to leave via this method (they should use quit_game)
+    if (game.hostSocketId === socket.id) return;
+
+    console.log(`[Room ${roomCode}] Player ${socket.id} left the game`);
+    
+    // Remove player from the game
+    game.removePlayer(socket.id);
+    
+    // Remove socket from room tracking
+    socket.leave(roomCode);
+    this.socketToRoom.delete(socket.id);
+  }
+
+  handlePlayerHeartbeat(socket) {
+    const roomCode = this.socketToRoom.get(socket.id);
+    if (!roomCode) return;
+    
+    const game = this.rooms.get(roomCode);
+    if (game) {
+      game.updatePlayerHeartbeat(socket.id);
+    }
+  }
+
   handleDisconnect(socket) {
     const roomCode = this.socketToRoom.get(socket.id);
     if (roomCode) {
@@ -133,10 +168,8 @@ class RoomManager {
         game.removePlayer(socket.id);
         if (game.hostSocketId === socket.id) {
             console.log(`Host left room ${roomCode}`);
-            // Clean up Gemini connection
-            if (game.gemini) {
-                game.gemini.ws?.close();
-            }
+            // Clean up game resources (timers, heartbeat checks, Gemini, etc.)
+            game.cleanup();
             this.rooms.delete(roomCode);
         }
       }

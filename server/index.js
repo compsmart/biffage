@@ -54,13 +54,17 @@ io.on('connection', (socket) => {
   console.log(`   User-Agent: ${socket.handshake.headers['user-agent']?.substring(0, 100)}`);
   console.log(`   IP: ${socket.handshake.address}`);
 
-  // Custom ping/pong handler for mobile keep-alive
+  // Custom ping/pong handler for mobile keep-alive and player activity tracking
   let lastPing = Date.now();
   socket.on('ping', () => {
     const now = Date.now();
     const timeSinceLastPing = now - lastPing;
     lastPing = now;
     console.log(`[${new Date().toISOString()}] 💓 Ping from ${socket.id} (${timeSinceLastPing}ms since last)`);
+    
+    // Update player heartbeat in their game room
+    roomManager.handlePlayerHeartbeat(socket);
+    
     socket.emit('pong');
   });
 
@@ -129,6 +133,16 @@ io.on('connection', (socket) => {
 
   socket.on('set_family_mode', ({ roomCode, enabled }) => {
     roomManager.handleSetFamilyMode(socket, roomCode, enabled);
+  });
+
+  socket.on('quit_game', ({ roomCode }) => {
+    console.log(`[${new Date().toISOString()}] 🚪 Host quit game: ${socket.id}, Room: ${roomCode}`);
+    roomManager.handleQuitGame(socket, roomCode);
+  });
+
+  socket.on('leave_game', ({ roomCode }) => {
+    console.log(`[${new Date().toISOString()}] 🚪 Player left game: ${socket.id}, Room: ${roomCode}`);
+    roomManager.handlePlayerLeave(socket, roomCode);
   });
 
   socket.on('disconnect', (reason) => {

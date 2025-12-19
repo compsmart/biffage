@@ -187,8 +187,13 @@ class SoundManager {
   }
 
   setMusicVolume(volume: number) {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
     if (this.musicGain) {
-      this.musicGain.gain.value = Math.max(0, Math.min(1, volume));
+      this.musicGain.gain.value = clampedVolume;
+    }
+    // Also update the HTML audio element directly since it's not connected to the gain node
+    if (this.musicElement) {
+      this.musicElement.volume = clampedVolume;
     }
   }
 
@@ -363,6 +368,7 @@ class SoundManager {
       const buffer = await this.loadAudioFile(type, randomFile);
       if (buffer) {
         this.playAudioBuffer(buffer);
+        console.log(`[Sound] Played file: ${type}/${randomFile}`);
         return true;
       }
     } catch (error) {
@@ -375,16 +381,23 @@ class SoundManager {
 
   // Play a sound effect (file or synthesized)
   play(type: SoundType) {
-    if (!this.isEnabled) return;
+    if (!this.isEnabled) {
+      console.log(`[Sound] Skipped (disabled): ${type}`);
+      return;
+    }
+    
+    console.log(`[Sound] Playing: ${type}`);
     
     // Try to play a sound file first (async, fire-and-forget)
     this.playSoundFile(type).then(played => {
       // If no file was played, fall back to synthesized sound
       if (!played) {
+        console.log(`[Sound] Using synthesized: ${type}`);
         this.playSynthesizedSound(type);
       }
     }).catch(() => {
       // Error occurred, fall back to synthesized sound
+      console.log(`[Sound] Error, using synthesized: ${type}`);
       this.playSynthesizedSound(type);
     });
   }
@@ -847,7 +860,10 @@ class SoundManager {
 
   // Background music
   startMusic() {
-    if (!this.isMusicEnabled || this.isMusicPlaying) return;
+    if (!this.isMusicEnabled || this.isMusicPlaying) {
+      console.log(`[Sound] Music start skipped (enabled=${this.isMusicEnabled}, playing=${this.isMusicPlaying})`);
+      return;
+    }
 
     // Discover music files if not already done
     if (this.musicFiles.length === 0) {
@@ -871,13 +887,15 @@ class SoundManager {
 
     this.musicElement = new Audio(`/music/${musicFile}`);
     this.musicElement.loop = true;
-    this.musicElement.volume = 0.5;
+    // Use the current music volume setting
+    this.musicElement.volume = this.musicGain ? this.musicGain.gain.value : 0.3;
 
     this.isMusicPlaying = true;
 
+    console.log(`[Sound] Starting music: ${musicFile}`);
     this.musicElement.currentTime = 0;
-    this.musicElement.play().catch(() => {
-      // Ignore play errors (e.g. autoplay restrictions)
+    this.musicElement.play().catch((err) => {
+      console.log(`[Sound] Music autoplay blocked: ${err.message}`);
     });
   }
 
@@ -885,6 +903,7 @@ class SoundManager {
    * Fade out music over the specified duration (in seconds)
    */
   fadeOutMusic(duration: number = 2.0) {
+    console.log(`[Sound] Fading out music over ${duration}s`);
     if (!this.musicElement || !this.isMusicPlaying) {
       this.stopMusic();
       return;
@@ -921,6 +940,7 @@ class SoundManager {
   }
 
   stopMusic() {
+    console.log('[Sound] Stopping music');
     this.isMusicPlaying = false;
 
     // Clear any fade timeout
