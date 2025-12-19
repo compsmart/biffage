@@ -148,7 +148,7 @@ body {
 }
 
 .logo {
-  width: min(400px, 80vw);
+  width: min(300px, 80vw);
   margin-bottom: 24px;
   filter: drop-shadow(0 10px 30px rgba(232, 90, 113, 0.4));
   opacity: 0;
