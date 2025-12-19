@@ -946,80 +946,80 @@ const ScoreboardScreen = ({
 };
 
 // Welcome Modal - shown on first load to explain game and enable audio
-const WelcomeModal = ({ 
-  roomCode, 
-  onContinue 
-}: { 
-  roomCode: string; 
+const WelcomeModal = ({
+  roomCode,
+  onContinue
+}: {
+  roomCode: string;
   onContinue: () => void;
 }) => (
   <motion.div
-    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80"
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
   >
     <motion.div
-      className="card-cartoon p-10 max-w-2xl w-full mx-4 text-center relative overflow-hidden"
+      className="card-cartoon p-4 sm:p-5 md:p-6 lg:p-6 max-w-2xl w-full max-h-[88vh] overflow-y-auto text-center relative"
       initial={{ scale: 0.8, opacity: 0, y: 50 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.8, opacity: 0, y: 50 }}
       transition={{ type: 'spring', damping: 20 }}
     >
-  
+
       {/* Logo */}
-      <motion.img 
-        src="/images/biffage-logo2.png" 
-        alt="Biffage" 
-        className="max-w-xs w-full h-auto mx-auto mb-10 logo-glow"
+      <motion.img
+        src="/images/biffage-logo2.png"
+        alt="Biffage"
+        className="max-w-[180px] sm:max-w-[220px] md:max-w-[240px] lg:max-w-[260px] w-full h-auto mx-auto mb-3 sm:mb-4 md:mb-4 lg:mb-4 logo-glow"
         animate={{ rotate: [-2, 2, -2] }}
         transition={{ duration: 2, repeat: Infinity }}
       />
-      
+
       {/* Title */}
-      <h2 
-        className="text-3xl font-fun font-bold mb-6"
+      <h2
+        className="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-fun font-bold mb-3 sm:mb-4 md:mb-4 lg:mb-4"
         style={{ color: '#ffe66d', textShadow: '3px 3px 0 #000' }}
       >
         Welcome to the Party! 🥳
       </h2>
-      
+
       {/* How to play */}
-      <div className="space-y-4 mb-8">
-        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
-          <span className="text-3xl">🤔</span>
-          <p className="font-fun text-white text-lg">Read the question and write a <span className="text-[#ff6eb4] font-bold">convincing lie</span></p>
+      <div className="space-y-2 sm:space-y-2 md:space-y-2.5 lg:space-y-2.5 mb-3 sm:mb-4 md:mb-4 lg:mb-4">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
+          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">🤔</span>
+          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Read the question and write a <span className="text-[#ff6eb4] font-bold">convincing lie</span></p>
         </div>
-        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
-          <span className="text-3xl">🎯</span>
-          <p className="font-fun text-white text-lg">Vote for what you think is the <span className="text-[#4ade80] font-bold">real answer</span></p>
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
+          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">🎯</span>
+          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Vote for what you think is the <span className="text-[#4ade80] font-bold">real answer</span></p>
         </div>
-        <div className="flex items-center gap-4 text-left bg-white/10 rounded-xl p-4">
-          <span className="text-3xl">😈</span>
-          <p className="font-fun text-white text-lg">Fool others with your lie to earn <span className="text-[#ffe66d] font-bold">bonus points</span>!</p>
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-3 lg:gap-3 text-left bg-white/10 rounded-xl p-2 sm:p-2.5 md:p-3 lg:p-3">
+          <span className="text-xl sm:text-2xl md:text-2xl lg:text-2xl flex-shrink-0">😈</span>
+          <p className="font-fun text-white text-sm sm:text-sm md:text-base lg:text-base">Fool others with your lie to earn <span className="text-[#ffe66d] font-bold">bonus points</span>!</p>
         </div>
       </div>
-      
+
       {/* Join instructions */}
-      <div 
-        className="bg-gradient-to-r from-[#ff6b35]/20 to-[#ff6eb4]/20 rounded-2xl p-6 mb-8 border-4 border-white/20"
+      <div
+        className="bg-gradient-to-r from-[#ff6b35]/20 to-[#ff6eb4]/20 rounded-xl p-3 sm:p-3.5 md:p-4 lg:p-4 mb-3 sm:mb-4 md:mb-4 lg:mb-4 border-4 border-white/20"
       >
-        <p className="font-fun text-white/80 text-lg mb-3">
+        <p className="font-fun text-white/80 text-sm sm:text-sm md:text-base lg:text-base mb-2">
           📱 Join on your phone or tablet at:
         </p>
-        <p 
-          className="font-fun text-2xl font-bold mb-4"
+        <p
+          className="font-fun text-lg sm:text-xl md:text-xl lg:text-xl font-bold mb-2 sm:mb-2.5 md:mb-2.5 lg:mb-2.5"
           style={{ color: '#38bdf8' }}
         >
           app.biffage.com
         </p>
-        <p className="font-fun text-white/60 text-sm">Enter this room code:</p>
-        <motion.div 
-          className="font-fun font-bold tracking-[0.3em]"
+        <p className="font-fun text-white/60 text-xs sm:text-xs md:text-sm lg:text-sm mb-1 sm:mb-1.5">Enter this room code:</p>
+        <motion.div
+          className="font-fun font-bold tracking-[0.2em] sm:tracking-[0.25em] md:tracking-[0.3em]"
           style={{
-            fontSize: 'clamp(2.5rem, 10vw, 4rem)',
+            fontSize: 'clamp(1.75rem, 6vw, 3rem)',
             color: '#ffe66d',
-            textShadow: '4px 4px 0 #ff6b35, 8px 8px 0 rgba(0,0,0,0.3)',
+            textShadow: '3px 3px 0 #ff6b35, 6px 6px 0 rgba(0,0,0,0.3)',
           }}
           animate={{ scale: [1, 1.02, 1] }}
           transition={{ duration: 1.5, repeat: Infinity }}
@@ -1027,18 +1027,18 @@ const WelcomeModal = ({
           {roomCode}
         </motion.div>
       </div>
-      
+
       {/* Continue button */}
       <motion.button
-        className="btn-cartoon btn-green text-2xl py-5 px-12"
+        className="btn-cartoon btn-green text-base sm:text-lg md:text-xl lg:text-xl py-3 sm:py-3.5 md:py-4 lg:py-4 px-6 sm:px-8 md:px-10 lg:px-10"
         onClick={onContinue}
         whileHover={{ scale: 1.05, rotate: 2 }}
         whileTap={{ scale: 0.95 }}
       >
         🚀 Let's Play! 🚀
       </motion.button>
-      
-      <p className="mt-4 text-white/50 font-fun text-sm">
+
+      <p className="mt-2 sm:mt-2.5 md:mt-2.5 lg:mt-2.5 text-white/50 font-fun text-xs sm:text-xs md:text-sm">
         🔊 This will also enable sound
       </p>
     </motion.div>
